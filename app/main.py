@@ -5,6 +5,7 @@ Full-Scale Qdrant RAG Engine, and Autonomous DeepCoder execution.
 """
 
 import os
+import asyncio
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 

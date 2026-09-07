@@ -268,6 +268,9 @@ class AntigravitySupervisor:
 {jupyter_section}
 """
 
+        j_link = jupyter_result.get("jupyter_link") if jupyter_result else None
+        j_browser = jupyter_result.get("browser_opened", False) if jupyter_result else False
+
         return {
             "success": True,
             "goal": goal,
@@ -279,6 +282,8 @@ class AntigravitySupervisor:
             "infrastructure": iac_result,
             "rag_ingest": rag_ingest_result,
             "jupyter": jupyter_result,
+            "jupyter_link": j_link,
+            "browser_opened": j_browser,
             "steps": steps,
         }
 
