@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 NVIDIA_ENDPOINT = "https://integrate.api.nvidia.com/v1/chat/completions"
-ACTIVE_NEMOTRON_MODEL = "mistralai/mistral-nemotron"
+ACTIVE_NEMOTRON_MODEL = "nvidia/nemotron-3.5-lightning-30b-a3b"
+FALLBACK_NEMOTRON_MODEL = "mistralai/mistral-nemotron"
+
 
 
 class NemotronClient:
@@ -47,84 +49,70 @@ class NemotronClient:
         self,
         prompt: str,
         system_prompt: str = "You are NVIDIA Nemotron, the elite neural reasoning and architectural synthesizer.",
-        max_tokens: int = 1024,
+        max_tokens: int = 400,
         temperature: float = 0.2,
-        timeout: int = 15,
+        timeout: int = 20,
     ) -> Dict[str, Any]:
         """
-        Executes a real chat completion against NVIDIA NIM API using curl for maximum HTTP/2 stability on macOS.
+        Executes a real chat completion against NVIDIA NIM API with model fallback.
         """
         key = self.get_api_key()
         if not key:
             return {
                 "success": False,
                 "error": "NVIDIA_API_KEY not configured.",
+                "content": "",
                 "used_cloud": False,
             }
 
-        payload = json.dumps({
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ],
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        })
+        models_to_try = [self.model, FALLBACK_NEMOTRON_MODEL]
 
-        cmd = [
-            "curl", "-s", "--max-time", str(timeout),
-            self.endpoint,
-            "-H", f"Authorization: Bearer {key}",
-            "-H", "Content-Type: application/json",
-            "-d", payload,
-        ]
+        for target_model in models_to_try:
+            payload = json.dumps({
+                "model": target_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt}
+                ],
+                "max_tokens": max_tokens,
+                "temperature": temperature,
+            })
 
-        start_time = time.time()
-        try:
-            res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 2)
-            duration = round(time.time() - start_time, 3)
+            cmd = [
+                "curl", "-s", "--max-time", str(timeout),
+                self.endpoint,
+                "-H", f"Authorization: Bearer {key}",
+                "-H", "Content-Type: application/json",
+                "-d", payload,
+            ]
 
-            if res.returncode == 0 and res.stdout.strip():
-                data = json.loads(res.stdout)
-                if "choices" in data and len(data["choices"]) > 0:
-                    content = data["choices"][0]["message"]["content"].strip()
-                    usage = data.get("usage", {})
-                    return {
-                        "success": True,
-                        "model": self.model,
-                        "content": content,
-                        "duration_seconds": duration,
-                        "tokens_used": usage.get("total_tokens", 0),
-                        "used_cloud": True,
-                    }
-                else:
-                    err_msg = data.get("detail") or data.get("title") or "Unknown NIM API response"
-                    return {
-                        "success": False,
-                        "error": err_msg,
-                        "duration_seconds": duration,
-                        "used_cloud": False,
-                    }
-            else:
-                return {
-                    "success": False,
-                    "error": f"Curl process failed with code {res.returncode}",
-                    "duration_seconds": duration,
-                    "used_cloud": False,
-                }
-        except subprocess.TimeoutExpired:
-            return {
-                "success": False,
-                "error": f"NVIDIA NIM API call timed out after {timeout}s (queue congestion).",
-                "used_cloud": False,
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "used_cloud": False,
-            }
+            start_time = time.time()
+            try:
+                res = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 2)
+                duration = round(time.time() - start_time, 3)
+
+                if res.returncode == 0 and res.stdout.strip():
+                    data = json.loads(res.stdout)
+                    if "choices" in data and len(data["choices"]) > 0:
+                        content = data["choices"][0]["message"]["content"].strip()
+                        usage = data.get("usage", {})
+                        return {
+                            "success": True,
+                            "model": target_model,
+                            "content": content,
+                            "duration_seconds": duration,
+                            "tokens_used": usage.get("total_tokens", 0),
+                            "used_cloud": True,
+                        }
+            except Exception:
+                continue
+
+        return {
+            "success": False,
+            "error": "All Nemotron models timed out or queued.",
+            "content": "",
+            "used_cloud": False,
+        }
 
     async def generate(
         self,
