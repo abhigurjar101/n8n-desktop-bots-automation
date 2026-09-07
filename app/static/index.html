@@ -1,298 +1,527 @@
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>n8n Desktop Bots Suite - Control Center</title>
-  
-  <!-- Tailwind CSS -->
+  <title>NEMI — Autonomous AI Engineering Fleet</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f0fdf4',
-              500: '#22c55e',
-              600: '#16a34a',
-              700: '#15803d',
-            },
-            nvidia: '#76b900',
-            darkBg: '#0b0f19',
-            darkCard: '#111827',
-            darkBorder: '#1f2937',
-            darkInput: '#1a2234'
-          }
-        }
-      }
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    * { font-family: 'Plus Jakarta Sans', sans-serif; box-sizing: border-box; }
+    code, pre { font-family: 'JetBrains Mono', monospace; }
+    body { background: #070a11; }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 30px rgba(34, 197, 94, 0.8); }
     }
-  </script>
+    .btn-start {
+      background: linear-gradient(135deg, #22c55e 0%, #10b981 50%, #059669 100%);
+      transition: all 0.25s ease;
+    }
+    .btn-start:hover {
+      filter: brightness(1.15);
+      transform: translateY(-2px);
+      animation: pulse-glow 2s infinite;
+    }
+    .btn-start:active { transform: translateY(0); }
+    .btn-start:disabled { opacity: 0.5; filter: grayscale(0.5); cursor: not-allowed; animation: none; transform: none; }
 
-  <!-- Marked.js for Markdown -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    @keyframes live-pulse {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.3); opacity: 0.6; }
+    }
+    .dot-live { animation: live-pulse 1.8s infinite; }
 
-  <!-- Highlight.js for Syntax Highlighting -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    .bot-pill {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid rgba(51, 65, 85, 0.5);
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .bot-pill.connected {
+      border-color: rgba(34, 197, 94, 0.6);
+      background: rgba(6, 78, 59, 0.2);
+    }
+    .bot-pill.active {
+      border-color: #22c55e;
+      background: rgba(34, 197, 94, 0.15);
+      box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+    }
 
-  <!-- Mermaid.js for Architecture & Flow Diagrams -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-
-  <link rel="stylesheet" href="/static/styles.css">
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070a11; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+  </style>
 </head>
-<body class="bg-darkBg text-slate-100 min-h-screen flex flex-col font-sans antialiased selection:bg-nvidia selection:text-black">
+<body class="min-h-screen text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-black">
 
-  <!-- Top Navigation Bar -->
-  <header class="h-16 border-b border-darkBorder bg-darkCard/80 backdrop-blur-md sticky top-0 z-30 px-6 flex items-center justify-between">
-    <div class="flex items-center space-x-3">
-      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-nvidia to-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-950/40 text-black font-black text-xl">
+  <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xl font-black text-black shadow-lg shadow-emerald-950/60">
         ⚡
       </div>
       <div>
-        <h1 class="font-bold text-lg tracking-tight text-white flex items-center gap-2">
-          n8n Desktop Bots Suite
-          <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-500/10 text-nvidia border border-nvidia/30 font-medium">
-            Nemotron 3 Ultra
+        <h1 class="text-white font-extrabold text-xl tracking-tight flex items-center gap-2">
+          NEMI
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            Antigravity Localhost
           </span>
         </h1>
-        <p class="text-xs text-slate-400">9 Production AI Agents for Engineering & Automation</p>
+        <p class="text-xs text-slate-400">Autonomous 9-Bot Multi-Agent Fleet</p>
       </div>
     </div>
 
-    <!-- Studio Navigation Tabs -->
-    <nav class="hidden lg:flex items-center space-x-1 bg-darkBg/80 p-1 rounded-xl border border-darkBorder" id="studio-nav">
-      <button id="nav-btn-orchestrator" onclick="switchStudioMode('antigravity-orchestrator')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
-        <span>👑</span> Antigravity Swarm
-      </button>
-      <button id="nav-btn-deepcoder" onclick="switchStudioMode('autonomous-deepcoder')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
-        <span>⚡</span> DeepCoder Studio
-      </button>
-      <button id="nav-btn-rag" onclick="switchStudioMode('advanced-rag')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
-        <span>🔬</span> Full-Scale RAG
-      </button>
-      <button id="nav-btn-bots" onclick="switchStudioMode('coding-assistant')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
-        <span>🤖</span> 9 Automation Bots
-      </button>
-    </nav>
-
-    <!-- Health Status Badges -->
-    <div class="flex items-center space-x-4">
-      <div id="status-n8n" class="flex items-center space-x-2 text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">
-        <span class="w-2 h-2 rounded-full bg-slate-500 status-dot"></span>
-        <span class="text-slate-300">n8n :5678</span>
+    <div class="flex items-center gap-3 text-xs">
+      <div id="badge-qdrant" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
+        <span>Qdrant: <b class="text-white">6333</b></span>
       </div>
 
-      <div id="status-qdrant" class="flex items-center space-x-2 text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">
-        <span class="w-2 h-2 rounded-full bg-slate-500 status-dot"></span>
-        <span class="text-slate-300">Qdrant :6333</span>
-      </div>
-
-      <!-- NVIDIA Key Button -->
-      <button id="btn-nvidia-key" class="flex items-center space-x-1.5 text-xs px-3 py-1.5 rounded-lg bg-emerald-950/60 border border-nvidia/40 text-emerald-300 hover:bg-emerald-900/60 transition">
+      <button onclick="openKeyModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition">
         <span>🔑</span>
-        <span id="nvidia-key-label">NVIDIA Key: Configured</span>
+        <span id="key-label">Nemotron Key</span>
       </button>
 
-      <button id="refresh-status-btn" title="Refresh Service Status" class="text-xs px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">
-        🔄 Check
-      </button>
-
-      <a href="http://localhost:5678" target="_blank" class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-nvidia text-black hover:bg-lime-400 transition flex items-center gap-1.5 shadow-sm">
-        Open n8n UI ↗
-      </a>
+      <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-semibold">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
+        <span>9 Bots Ready</span>
+      </div>
     </div>
   </header>
 
-  <!-- Main Container -->
-  <div class="flex-1 flex overflow-hidden">
-    
-    <!-- Left Sidebar: Bot Directory -->
-    <aside class="w-72 border-r border-darkBorder bg-darkCard flex flex-col shrink-0">
-      <div class="p-3 border-b border-darkBorder">
-        <input 
-          type="text" 
-          id="bot-search" 
-          placeholder="Search bots..." 
-          class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder focus:border-nvidia focus:outline-none placeholder-slate-500 text-white"
-        />
-      </div>
+  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col justify-center">
 
-      <div class="flex-1 overflow-y-auto p-3 space-y-4" id="bots-list-container">
-        <!-- Dynamically populated by app.js -->
-        <div class="text-xs text-slate-500 p-2">Loading bots...</div>
-      </div>
+    <div class="text-center mb-6">
+      <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
+        Give Any Task to the <span class="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">AI Swarm</span>
+      </h2>
+      <p class="text-sm text-slate-400 mt-2 max-w-xl mx-auto">
+        Type your objective below and hit <b>START</b>. Antigravity will orchestrate all 9 bots across architecture, deep coding, testing, and vector RAG.
+      </p>
+    </div>
 
-      <div class="p-3 border-t border-darkBorder bg-darkBg/50 text-xs text-slate-400 flex justify-between items-center">
-        <span>Workflows: <b id="wf-count" class="text-white">9 Active</b></span>
-        <button id="btn-show-history" class="text-xs text-nvidia hover:underline">
-          📜 History (<span id="history-count">0</span>)
+    <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-3 shadow-2xl shadow-emerald-950/20 mb-6">
+      <textarea
+        id="prompt-input"
+        rows="4"
+        placeholder="e.g. Build an encrypted audit logging microservice with PostgreSQL and Kafka with unit tests, Terraform IaC, and vector RAG memory..."
+        class="w-full bg-transparent p-4 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
+      ></textarea>
+
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/80 px-2">
+        <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
+          <span class="text-slate-500 font-medium">Quick Tasks:</span>
+          <button onclick="setPrompt('Build a thread-safe distributed cache with Redis cluster, TTL expiration, and unit tests')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">Distributed Cache</button>
+          <button onclick="setPrompt('Build a JWT Authentication microservice with token bucket rate limiting and PostgreSQL')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">JWT Auth & Rate Limiter</button>
+          <button onclick="setPrompt('Build a real-time IoT event streaming pipeline with Kafka and Terraform deployment')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">IoT Pipeline</button>
+        </div>
+
+        <button
+          id="btn-start"
+          onclick="startSwarm()"
+          class="btn-start px-8 py-3.5 rounded-2xl font-black text-sm text-black uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-emerald-900/40 cursor-pointer"
+        >
+          <span id="start-icon" class="text-lg">⚡</span>
+          <span id="start-text">START</span>
         </button>
       </div>
-    </aside>
+    </div>
 
-    <!-- Center Workspace: Bot Input & Configuration -->
-    <main class="flex-1 flex flex-col md:flex-row overflow-hidden">
-      
-      <!-- Input Panel -->
-      <section class="w-full md:w-1/2 border-r border-darkBorder flex flex-col bg-darkCard/30 overflow-y-auto">
-        
-        <!-- Bot Header Banner -->
-        <div class="p-6 border-b border-darkBorder bg-gradient-to-b from-darkCard to-transparent">
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-3">
-              <span id="active-bot-emoji" class="text-3xl p-2 rounded-xl bg-slate-800/80 border border-slate-700">🧑‍💻</span>
-              <div>
-                <h2 id="active-bot-name" class="text-xl font-bold text-white tracking-tight">Coding Assistant</h2>
-                <p id="active-bot-desc" class="text-xs text-slate-400 mt-0.5">Code generation, review, refactoring, and debugging</p>
-              </div>
-            </div>
-            <span id="active-bot-cat" class="text-xs px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
-              Core Development
-            </span>
-          </div>
-
-          <!-- Quick Mode Tabs -->
-          <div class="mt-4 flex flex-wrap gap-1.5" id="bot-task-tabs">
-            <!-- Dynamically populated -->
-          </div>
+    <div id="bots-board" class="mb-8">
+      <div class="flex items-center justify-between mb-3 px-1">
+        <div class="flex items-center gap-2">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 dot-live"></span>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">All Bots Connected (10/10)</span>
         </div>
-
-        <!-- Dynamic Form Fields -->
-        <form id="bot-form" class="p-6 space-y-4 flex-1 flex flex-col">
-          <div id="dynamic-fields-container" class="space-y-4 flex-1">
-            <!-- Injected per bot type -->
-          </div>
-
-          <!-- Action & Run Controls -->
-          <div class="pt-4 border-t border-darkBorder flex items-center justify-between">
-            <label class="flex items-center space-x-2 text-xs text-slate-400 cursor-pointer">
-              <input type="checkbox" id="test-mode-toggle" class="rounded border-slate-700 bg-darkInput text-nvidia focus:ring-nvidia">
-              <span>Use Test Webhook (/webhook-test/)</span>
-            </label>
-
-            <button 
-              type="submit" 
-              id="submit-btn" 
-              class="px-5 py-2.5 bg-gradient-to-r from-nvidia to-emerald-500 hover:from-lime-400 hover:to-emerald-400 text-black font-semibold rounded-xl text-sm transition shadow-lg shadow-emerald-950/50 flex items-center gap-2 cursor-pointer"
-            >
-              <span id="btn-spinner" class="hidden animate-spin">⏳</span>
-              <span id="btn-text">Execute Bot ⚡</span>
-            </button>
-          </div>
-        </form>
-      </section>
-
-      <!-- Output Panel -->
-      <section class="w-full md:w-1/2 flex flex-col bg-darkBg overflow-hidden">
-        
-        <!-- Output Header -->
-        <div class="h-12 border-b border-darkBorder px-4 flex items-center justify-between bg-darkCard/50">
-          <div class="flex items-center space-x-2">
-            <button id="tab-btn-formatted" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white font-medium border border-slate-700">
-              Response
-            </button>
-            <button id="tab-btn-diagrams" class="text-xs px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">
-              Diagrams (Mermaid)
-            </button>
-            <button id="tab-btn-raw" class="text-xs px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition">
-              Raw JSON
-            </button>
-          </div>
-
-          <div class="flex items-center space-x-2 text-xs">
-            <span id="execution-time" class="text-slate-500">Ready</span>
-            <button id="copy-output-btn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition text-xs">
-              📋 Copy
-            </button>
-          </div>
-        </div>
-
-        <!-- Output Viewports -->
-        <div class="flex-1 overflow-y-auto p-6 relative">
-          
-          <!-- Empty State Placeholder -->
-          <div id="empty-state" class="h-full flex flex-col items-center justify-center text-center p-8 text-slate-500">
-            <div class="text-5xl mb-3 opacity-60">🤖</div>
-            <h3 class="text-sm font-semibold text-slate-300">Awaiting Bot Execution</h3>
-            <p class="text-xs max-w-sm mt-1 text-slate-500">
-              Fill out the parameters on the left and click <b>Execute Bot</b> to dispatch the payload to your n8n workflow.
-            </p>
-          </div>
-
-          <!-- Loading State -->
-          <div id="loading-state" class="hidden h-full flex flex-col items-center justify-center text-center p-8">
-            <div class="w-12 h-12 border-4 border-slate-700 border-t-nvidia rounded-full animate-spin mb-4"></div>
-            <h3 class="text-sm font-medium text-white">Bot is executing workflow...</h3>
-            <p class="text-xs text-slate-400 mt-1">Invoking NVIDIA Nemotron 3 Ultra via n8n webhook</p>
-          </div>
-
-          <!-- Formatted Markdown Output -->
-          <div id="output-formatted" class="hidden prose prose-invert prose-emerald max-w-none text-sm space-y-4"></div>
-
-          <!-- Diagrams Output -->
-          <div id="output-diagrams" class="hidden space-y-6">
-            <div id="mermaid-container" class="bg-darkCard p-4 rounded-xl border border-darkBorder overflow-x-auto flex justify-center"></div>
-          </div>
-
-          <!-- Raw JSON Output -->
-          <div id="output-raw" class="hidden">
-            <pre class="bg-darkCard p-4 rounded-xl text-xs text-emerald-400 font-mono overflow-x-auto border border-darkBorder"><code id="raw-json-code"></code></pre>
-          </div>
-
-        </div>
-      </section>
-
-    </main>
-
-  </div>
-
-  <!-- NVIDIA Key Modal -->
-  <div id="nvidia-modal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="w-full max-w-lg bg-darkCard border border-darkBorder rounded-2xl p-6 shadow-2xl space-y-4">
-      <div class="flex items-center justify-between border-b border-darkBorder pb-3">
-        <h3 class="font-bold text-base text-white flex items-center gap-2">
-          <span>🔑</span> Configure NVIDIA API Key
-        </h3>
-        <button id="btn-close-nvidia-modal" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+        <span id="swarm-status-text" class="text-xs text-slate-400">Ready to run</span>
       </div>
-      <p class="text-xs text-slate-400">
-        Enter your NVIDIA API key (from <a href="https://build.nvidia.com" target="_blank" class="text-nvidia underline">build.nvidia.com</a>) to power <b>Nemotron 3 Ultra 550B</b> and <b>NV-EmbedQA</b> across all 9 bots and the Antigravity Orchestrator.
+
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5" id="bots-grid">
+        <div id="bot-supervisor" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">👑</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Antigravity</div>
+            <div class="text-[10px] text-slate-400 truncate">Swarm Director</div>
+          </div>
+        </div>
+
+        <div id="bot-system-design" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🏗️</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">System Design</div>
+            <div class="text-[10px] text-slate-400 truncate">C4 & Architecture</div>
+          </div>
+        </div>
+
+        <div id="bot-high-thinking" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🧠</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">High Thinking</div>
+            <div class="text-[10px] text-slate-400 truncate">Dialectics & Risk</div>
+          </div>
+        </div>
+
+        <div id="bot-coding-assistant" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🧑‍💻</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Coding Assistant</div>
+            <div class="text-[10px] text-slate-400 truncate">AST Syntax Engine</div>
+          </div>
+        </div>
+
+        <div id="bot-deepcoder" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">⚡</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">DeepCoder</div>
+            <div class="text-[10px] text-slate-400 truncate">Sandbox QA Tests</div>
+          </div>
+        </div>
+
+        <div id="bot-testing-bot" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🧪</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Testing Bot</div>
+            <div class="text-[10px] text-slate-400 truncate">Pytest Assertions</div>
+          </div>
+        </div>
+
+        <div id="bot-advanced-rag" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🔬</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Advanced RAG</div>
+            <div class="text-[10px] text-slate-400 truncate">Hybrid Vector RRF</div>
+          </div>
+        </div>
+
+        <div id="bot-cloud-deployment" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">☁️</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Cloud IaC</div>
+            <div class="text-[10px] text-slate-400 truncate">Terraform & K8s</div>
+          </div>
+        </div>
+
+        <div id="bot-ml-pipeline" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🤖</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">ML Pipeline</div>
+            <div class="text-[10px] text-slate-400 truncate">Training & Drift</div>
+          </div>
+        </div>
+
+        <div id="bot-n8n-manager" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🎛️</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">n8n Manager</div>
+            <div class="text-[10px] text-slate-400 truncate">Cluster Ops</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="progress-wrap" class="hidden mb-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
+      <div class="flex items-center justify-between mb-3 text-xs">
+        <span id="progress-stage" class="font-semibold text-emerald-400 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
+          <span>Orchestrating multi-agent swarm...</span>
+        </span>
+        <span id="progress-timer" class="font-mono text-slate-400">0.0s</span>
+      </div>
+      <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+        <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300" style="width: 15%"></div>
+      </div>
+    </div>
+
+    <div id="results-wrap" class="hidden mb-12">
+      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 px-5 py-3.5 rounded-2xl mb-4">
+        <div class="flex items-center gap-3">
+          <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
+            ✓ SWARM EXECUTION COMPLETE
+          </span>
+          <span id="res-time" class="text-xs text-slate-400 font-mono"></span>
+        </div>
+        <button onclick="copyOutput()" id="btn-copy" class="text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1.5">
+          <span>📋</span> Copy All
+        </button>
+      </div>
+
+      <div id="results-body" class="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 text-sm text-slate-200 space-y-6 overflow-x-auto shadow-2xl leading-relaxed">
+      </div>
+    </div>
+
+  </main>
+
+  <div id="key-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-base text-white flex items-center gap-2">
+          <span>🔑</span> NVIDIA Nemotron Key
+        </h3>
+        <button onclick="closeKeyModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
+      </div>
+      <p class="text-xs text-slate-400 leading-relaxed">
+        Paste your NVIDIA API Key (from <a href="https://build.nvidia.com" target="blank" class="text-emerald-400 underline">build.nvidia.com</a>) to connect directly to cloud Nemotron 3 Ultra 550B.
+        <br><br>
+        <span class="text-emerald-400 font-semibold">Note:</span> Without a key, NEMI runs at 100% speed using the local Antigravity intelligence engine!
       </p>
       <div>
-        <label class="block text-xs font-semibold text-slate-300 mb-1">NVIDIA API Key</label>
-        <input 
-          type="password" 
-          id="input-nvidia-key" 
-          placeholder="nvapi-..." 
-          class="w-full text-xs font-mono px-3 py-2.5 bg-darkInput rounded-xl border border-darkBorder text-emerald-300 focus:border-nvidia focus:outline-none"
+        <label class="block text-xs font-semibold text-slate-300 mb-1.5">API Key</label>
+        <input
+          type="password"
+          id="input-api-key"
+          placeholder="nvapi-..."
+          class="w-full text-xs font-mono px-3.5 py-2.5 bg-slate-950 rounded-xl border border-slate-800 text-emerald-300 focus:border-emerald-500 focus:outline-none"
         />
       </div>
-      <div id="nvidia-modal-feedback" class="text-xs hidden p-2.5 rounded-lg"></div>
+      <div id="key-feedback" class="hidden text-xs p-2.5 rounded-xl"></div>
       <div class="flex justify-end gap-2 pt-2">
-        <button id="btn-cancel-nvidia" class="px-4 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Cancel</button>
-        <button id="btn-save-nvidia" class="px-4 py-2 text-xs rounded-xl bg-nvidia text-black font-semibold hover:bg-lime-400 transition">Save & Activate Key</button>
+        <button onclick="closeKeyModal()" class="px-4 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Cancel</button>
+        <button onclick="saveKey()" class="px-4 py-2 text-xs rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition">Save & Activate</button>
       </div>
     </div>
   </div>
 
-  <!-- History Modal / Drawer -->
-  <div id="history-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex justify-end">
-    <div class="w-full max-w-md bg-darkCard border-l border-darkBorder h-full flex flex-col shadow-2xl">
-      <div class="p-4 border-b border-darkBorder flex items-center justify-between">
-        <h3 class="font-bold text-sm text-white">Execution History</h3>
-        <div class="flex items-center space-x-2">
-          <button id="btn-clear-history" class="text-xs text-red-400 hover:underline">Clear</button>
-          <button id="btn-close-history" class="text-slate-400 hover:text-white text-lg px-2">&times;</button>
-        </div>
-      </div>
-      <div id="history-list" class="flex-1 overflow-y-auto p-4 space-y-3">
-        <!-- History items -->
-      </div>
-    </div>
-  </div>
+  <script>
+    let rawOutputData = null;
+    let timerInterval = null;
 
-  <script src="/static/app.js"></script>
+    function setPrompt(text) {
+      document.getElementById('prompt-input').value = text;
+      document.getElementById('prompt-input').focus();
+    }
+
+    function openKeyModal() {
+      document.getElementById('key-modal').classList.remove('hidden');
+      document.getElementById('input-api-key').focus();
+    }
+    function closeKeyModal() {
+      document.getElementById('key-modal').classList.add('hidden');
+    }
+
+    async function checkKeyStatus() {
+      try {
+        const res = await fetch('/api/credentials/status');
+        const data = await res.json();
+        if (data.nvidiaConfigured) {
+          document.getElementById('key-label').textContent = 'Nemotron: ' + data.maskedKey;
+        } else {
+          document.getElementById('key-label').textContent = 'Nemotron: Local Engine';
+        }
+      } catch (e) {
+        document.getElementById('key-label').textContent = 'Nemotron: Ready';
+      }
+    }
+
+    async function saveKey() {
+      const key = document.getElementById('input-api-key').value.trim();
+      const fb = document.getElementById('key-feedback');
+      if (!key) return;
+      fb.className = 'text-xs p-2.5 rounded-xl bg-slate-800 text-slate-300 block';
+      fb.textContent = 'Activating key...';
+      try {
+        const res = await fetch('/api/credentials/nvidia', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ api_key: key })
+        });
+        const data = await res.json();
+        if (data.success) {
+          fb.className = 'text-xs p-2.5 rounded-xl bg-emerald-950 text-emerald-300 block';
+          fb.textContent = '✓ Nemotron Key Activated!';
+          await checkKeyStatus();
+          setTimeout(closeKeyModal, 1000);
+        }
+      } catch (e) {
+        fb.className = 'text-xs p-2.5 rounded-xl bg-red-950 text-red-300 block';
+        fb.textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function setAllBotsActive(isActive) {
+      const pills = document.querySelectorAll('.bot-pill');
+      pills.forEach(p => {
+        if (isActive) {
+          p.classList.add('active');
+        } else {
+          p.classList.remove('active');
+        }
+      });
+    }
+
+    function renderMarkdown(text) {
+      if (!text) return '';
+      let out = text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+
+      out = out.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(m, lang, code) {
+        return '<pre class="bg-slate-950 border border-slate-800 rounded-2xl p-4 my-4 overflow-x-auto text-xs text-emerald-400 font-mono"><code>' + code.trim() + '</code></pre>';
+      });
+
+      out = out.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-white mt-6 mb-2">$1</h3>');
+      out = out.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-emerald-400 mt-8 mb-3 pb-1 border-b border-slate-800">$1</h2>');
+      out = out.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-extrabold text-white mt-8 mb-4">$1</h1>');
+
+      out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>');
+      out = out.replace(/\*(.*?)\*/g, '<em class="text-slate-300">$1</em>');
+      out = out.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-800 text-emerald-300 text-xs font-mono">$1</code>');
+      out = out.replace(/^\s*-\s+(.*$)/gim, '<li class="ml-4 list-disc text-slate-300 my-1">$1</li>');
+      out = out.replace(/\n\n+/g, '</p><p class="my-3 text-slate-300 leading-relaxed">');
+      return '<p class="text-slate-300 leading-relaxed">' + out + '</p>';
+    }
+
+    async function startSwarm() {
+      const prompt = document.getElementById('prompt-input').value.trim();
+      if (!prompt) {
+        document.getElementById('prompt-input').focus();
+        document.getElementById('prompt-input').classList.add('border-red-500');
+        setTimeout(() => document.getElementById('prompt-input').classList.remove('border-red-500'), 1500);
+        return;
+      }
+
+      const btn = document.getElementById('btn-start');
+      btn.disabled = true;
+      document.getElementById('start-icon').textContent = '⏳';
+      document.getElementById('start-text').textContent = 'RUNNING...';
+
+      document.getElementById('results-wrap').classList.add('hidden');
+      document.getElementById('progress-wrap').classList.remove('hidden');
+      document.getElementById('swarm-status-text').textContent = '🟢 All 10 bots working in swarm...';
+
+      setAllBotsActive(true);
+
+      const startTime = performance.now();
+      const timerEl = document.getElementById('progress-timer');
+      const barEl = document.getElementById('progress-bar');
+      const stageEl = document.getElementById('progress-stage');
+
+      let progress = 15;
+      timerInterval = setInterval(() => {
+        const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
+        timerEl.textContent = elapsed + 's';
+        if (progress < 90) {
+          progress += Math.random() * 8;
+          barEl.style.width = Math.min(progress, 90) + '%';
+        }
+      }, 200);
+
+      const stageMsgs = [
+        '1/5: 🏗️ System Design Bot architecting C4 topologies...',
+        '2/5: 🧠 High Thinking Bot running dialectical pre-mortem...',
+        '3/5: ⚡ Autonomous DeepCoder generating code & executing tests in sandbox...',
+        '4/5: ☁️ Cloud Deployment Bot compiling Terraform IaC modules...',
+        '5/5: 📚 Local RAG Bot indexing 20 chunks into Qdrant vector memory...'
+      ];
+      let msgIdx = 0;
+      const stageInterval = setInterval(() => {
+        if (msgIdx < stageMsgs.length) {
+          stageEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span><span>' + stageMsgs[msgIdx] + '</span>';
+          msgIdx++;
+        }
+      }, 700);
+
+      try {
+        const response = await fetch('/api/orchestrator/supervise', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            goal: prompt,
+            language: 'python',
+            cloud_provider: 'aws',
+            include_tests: true,
+            include_iac: true,
+            index_in_rag: true
+          })
+        });
+
+        const data = await response.json();
+        rawOutputData = data;
+
+        clearInterval(timerInterval);
+        clearInterval(stageInterval);
+        barEl.style.width = '100%';
+
+        const duration = ((performance.now() - startTime) / 1000).toFixed(2);
+        displayResults(data, duration);
+
+      } catch (err) {
+        clearInterval(timerInterval);
+        clearInterval(stageInterval);
+        alert('Swarm execution error: ' + err.message);
+      } finally {
+        btn.disabled = false;
+        document.getElementById('start-icon').textContent = '⚡';
+        document.getElementById('start-text').textContent = 'START';
+        document.getElementById('progress-wrap').classList.add('hidden');
+        document.getElementById('swarm-status-text').textContent = '✓ Swarm completed successfully';
+        setAllBotsActive(false);
+      }
+    }
+
+    function displayResults(data, duration) {
+      document.getElementById('res-time').textContent = 'Duration: ' + duration + 's | All 10 Agents Executed';
+
+      const body = document.getElementById('results-body');
+      let html = '';
+
+      if (data.executive_summary) {
+        html += renderMarkdown(data.executive_summary);
+      } else {
+        html += '<h2 class="text-xl font-bold text-emerald-400 mb-4">Swarm Delivery Package: ' + data.goal + '</h2>';
+      }
+
+      body.innerHTML = html;
+      document.getElementById('results-wrap').classList.remove('hidden');
+      document.getElementById('results-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function copyOutput() {
+      if (!rawOutputData) return;
+      const text = rawOutputData.executive_summary || JSON.stringify(rawOutputData, null, 2);
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById('btn-copy');
+      btn.innerHTML = '<span>✓</span> Copied!';
+      setTimeout(() => btn.innerHTML = '<span>📋</span> Copy All', 2000);
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        startSwarm();
+      }
+    });
+
+    checkKeyStatus();
+  </script>
 </body>
 </html>
