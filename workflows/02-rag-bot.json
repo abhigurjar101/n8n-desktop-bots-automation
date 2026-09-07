@@ -1,0 +1,669 @@
+{
+  "name": "RAG Bot - Local Document Q&A",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-ingest",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Ingest Documents",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        200
+      ],
+      "webhookId": "rag-ingest"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rag-query",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook - Query RAG",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        500
+      ],
+      "webhookId": "rag-query"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, directory, chunkSize, chunkOverlap } = $json.body;\n\nlet filePaths = [];\n\nif (files && Array.isArray(files)) {\n  filePaths = files;\n} else if (directory) {\n  const fs = require('fs');\n  const path = require('path');\n  \n  function walkDir(dir) {\n    const entries = fs.readdirSync(dir, { withFileTypes: true });\n    for (const entry of entries) {\n      const fullPath = path.join(dir, entry.name);\n      if (entry.isDirectory()) {\n        walkDir(fullPath);\n      } else if (\\.md$|\\.txt$|\\.pdf$|\\.js$|\\.ts$|\\.py$|\\.json$|\\.yaml$|\\.yml$|\\.html$|\\.css$|\\.mdx$/.test(entry.name)) {\n        filePaths.push(fullPath);\n      }\n    }\n  }\n  \n  walkDir(directory);\n}\n\nreturn filePaths.map(fp => ({ json: { filePath: fp } }));"
+      },
+      "id": "3",
+      "name": "Resolve File Paths",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst { filePath } = $json;\nconst ext = path.extname(filePath).toLowerCase();\n\nlet content = '';\n\ntry {\n  if (ext === '.pdf') {\n    const pdf = require('pdf-parse');\n    const buffer = fs.readFileSync(filePath);\n    const data = await pdf(buffer);\n    content = data.text;\n  } else {\n    content = fs.readFileSync(filePath, 'utf-8');\n  }\n} catch (e) {\n  return [{ json: { filePath, error: e.message, content: '' } }];\n}\n\nreturn [{ json: { filePath, content, ext } }];"
+      },
+      "id": "4",
+      "name": "Read File Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        750,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { content, chunkSize = 1000, chunkOverlap = 200 } = $json;\n\nif (!content || content.trim().length === 0) {\n  return [{ json: { chunks: [], filePath: $json.filePath } }];\n}\n\nconst chunks = [];\nlet start = 0;\n\nwhile (start < content.length) {\n  const end = Math.min(start + chunkSize, content.length);\n  let chunk = content.slice(start, end);\n  \n  if (end < content.length) {\n    const lastNewline = chunk.lastIndexOf('\\n');\n    const lastSpace = chunk.lastIndexOf(' ');\n    const breakPoint = Math.max(lastNewline, lastSpace);\n    if (breakPoint > chunkSize * 0.5) {\n      chunk = chunk.slice(0, breakPoint);\n      end = start + breakPoint;\n    }\n  }\n  \n  chunks.push({\n    text: chunk.trim(),\n    startIndex: start,\n    endIndex: end,\n    filePath: $json.filePath\n  });\n  \n  start = end - chunkOverlap;\n  if (start >= content.length) break;\n}\n\nreturn chunks.map(c => ({ json: c }));"
+      },
+      "id": "5",
+      "name": "Chunk Text",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "model": "nvidia/nv-embedqa-e5-v5",
+        "input": "={{ $json.text }}",
+        "options": {}
+      },
+      "id": "6",
+      "name": "OpenAI - Generate Embeddings",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        1250,
+        200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const { data, filePath, startIndex, endIndex } = $json;\n\nconst embedding = data[0].embedding;\n\nconst vectorData = {\n  id: `${filePath}_${startIndex}_${endIndex}_${Date.now()}`, \n  vector: embedding,\n  payload: {\n    text: $json.text,\n    filePath,\n    startIndex,\n    endIndex,\n    metadata: {\n      source: filePath,\n      chunkIndex: Math.floor(startIndex / 1000),\n      timestamp: new Date().toISOString()\n    }\n  }\n};\n\nreturn [{ json: vectorData }];"
+      },
+      "id": "7",
+      "name": "Prepare Vector Record",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/n8n_rag/points",
+        "method": "PUT",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={{ JSON.stringify([$json]) }}",
+        "headerParametersJson": "={\n  \"Content-Type\": \"application/json\",\n  \"api-key\": \"{{ $credentials.qdrantApiKey }}\"\n}"
+      },
+      "id": "8",
+      "name": "Qdrant - Upsert Vectors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1750,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qdrant-cred-01",
+          "name": "qdrantAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const { query, topK = 5, filter, model } = $json.body;\n\nreturn [{ json: { query, topK, filter, model: model || 'nvidia/nv-embedqa-e5-v5' } }];"
+      },
+      "id": "9",
+      "name": "Prepare Query",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "model": "={{ $json.model }}",
+        "input": "={{ $json.query }}",
+        "options": {}
+      },
+      "id": "10",
+      "name": "OpenAI - Query Embedding",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/n8n_rag/points/search",
+        "method": "POST",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"vector\": {{ JSON.stringify($json.data[0].embedding) }},\n  \"limit\": {{ $json.topK }},\n  \"with_payload\": true,\n  \"with_vector\": false\n}",
+        "headerParametersJson": "={\n  \"Content-Type\": \"application/json\",\n  \"api-key\": \"{{ $credentials.qdrantApiKey }}\"\n}"
+      },
+      "id": "11",
+      "name": "Qdrant - Search Vectors",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1000,
+        500
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qdrant-cred-01",
+          "name": "qdrantAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const { result, query } = $json;\n\nconst contexts = result.map((r, i) => ({\n  rank: i + 1,\n  score: r.score,\n  text: r.payload.text,\n  source: r.payload.filePath,\n  metadata: r.payload.metadata\n})).filter(r => r.score > 0.5);\n\nconst contextText = contexts.map(c => `\n[Source ${c.rank} | Score: ${c.score.toFixed(3)} | File: ${c.source}]\n${c.text}`).join('\\n---\\n');\n\nconst systemPrompt = `You are a helpful AI assistant that answers questions based on the provided context. \n\nGuidelines:\n1. Only use information from the provided context\n2. If the context doesn't contain the answer, say so clearly\n3. Cite sources using [Source X] format\n4. Be concise but thorough\n5. If uncertain, express uncertainty\n\nContext:\n${contextText}`;\n\nreturn [{ json: { systemPrompt, query, contexts, model: 'nvidia/nemotron-3-ultra-550b-a55b', temperature: 0.1 } }];"
+      },
+      "id": "12",
+      "name": "Build RAG Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": 3000,
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.query }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "13",
+      "name": "OpenAI - RAG Answer",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        1500,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const answer = $json.choices[0].message.content;\nconst { contexts, query } = $json;\n\nreturn [{ json: {\n  success: true,\n  query,\n  answer,\n  sources: contexts.map(c => ({\n    file: c.source,\n    score: c.score,\n    preview: c.text.substring(0, 200)\n  })),\n  usage: $json.usage\n} }];"
+      },
+      "id": "14",
+      "name": "Format RAG Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1750,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "15",
+      "name": "Respond - Ingest Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "16",
+      "name": "Respond - Query Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { collectionName = 'n8n_rag', vectorSize = 1536, distance = 'Cosine' } = $json.body;\n\nreturn [{ json: {\n  collectionName,\n  vectorSize,\n  distance\n} }];"
+      },
+      "id": "17",
+      "name": "Prepare Collection Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/{{ $json.collectionName }}",
+        "method": "PUT",
+        "jsonParameters": true,
+        "options": {},
+        "bodyParametersJson": "={\n  \"vectors\": {\n    \"size\": {{ $json.vectorSize }},\n    \"distance\": \"{{ $json.distance }}\"\n  }\n}",
+        "headerParametersJson": "={\n  \"Content-Type\": \"application/json\",\n  \"api-key\": \"{{ $credentials.qdrantApiKey }}\"\n}"
+      },
+      "id": "18",
+      "name": "Qdrant - Create Collection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        750,
+        50
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qdrant-cred-01",
+          "name": "qdrantAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "19",
+      "name": "Respond - Collection Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        50
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { collectionName = 'n8n_rag' } = $json.body;\n\nreturn [{ json: { collectionName } }];"
+      },
+      "id": "20",
+      "name": "Prepare Delete",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/{{ $json.collectionName }}",
+        "method": "DELETE",
+        "options": {},
+        "headerParametersJson": "={\n  \"api-key\": \"{{ $credentials.qdrantApiKey }}\"\n}"
+      },
+      "id": "21",
+      "name": "Qdrant - Delete Collection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        750,
+        -100
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qdrant-cred-01",
+          "name": "qdrantAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "22",
+      "name": "Respond - Collection Deleted",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { collectionName = 'n8n_rag' } = $json.body;\n\nreturn [{ json: { collectionName } }];"
+      },
+      "id": "23",
+      "name": "Prepare Stats",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        -200
+      ]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/{{ $json.collectionName }}",
+        "method": "GET",
+        "options": {},
+        "headerParametersJson": "={\n  \"api-key\": \"{{ $credentials.qdrantApiKey }}\"\n}"
+      },
+      "id": "24",
+      "name": "Qdrant - Get Collection Info",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        750,
+        -200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "qdrant-cred-01",
+          "name": "qdrantAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "25",
+      "name": "Respond - Collection Stats",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        -200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Ingest Documents": {
+      "main": [
+        [
+          {
+            "node": "Resolve File Paths",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Resolve File Paths": {
+      "main": [
+        [
+          {
+            "node": "Read File Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read File Content": {
+      "main": [
+        [
+          {
+            "node": "Chunk Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunk Text": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Prepare Vector Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Vector Record": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Upsert Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Upsert Vectors": {
+      "main": [
+        [
+          {
+            "node": "Respond - Ingest Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Query RAG": {
+      "main": [
+        [
+          {
+            "node": "Prepare Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Query": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Search Vectors",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Search Vectors": {
+      "main": [
+        [
+          {
+            "node": "Build RAG Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build RAG Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - RAG Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - RAG Answer": {
+      "main": [
+        [
+          {
+            "node": "Format RAG Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format RAG Response": {
+      "main": [
+        [
+          {
+            "node": "Respond - Query Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Collection Config": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Create Collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Create Collection": {
+      "main": [
+        [
+          {
+            "node": "Respond - Collection Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Delete": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Delete Collection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Delete Collection": {
+      "main": [
+        [
+          {
+            "node": "Respond - Collection Deleted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Stats": {
+      "main": [
+        [
+          {
+            "node": "Qdrant - Get Collection Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qdrant - Get Collection Info": {
+      "main": [
+        [
+          {
+            "node": "Respond - Collection Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "rag-bot",
+  "tags": []
+}

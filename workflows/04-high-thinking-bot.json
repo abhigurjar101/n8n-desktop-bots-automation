@@ -1,0 +1,518 @@
+{
+  "name": "High Thinking / Reasoning Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "high-thinking",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Thinking Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "high-thinking"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { problem, mode, context, constraints, model, iterations, temperature } = $json.body;\n\nconst modes = {\n  deep: `You are a world-class thinker and problem solver. Approach this problem with deep, multi-layered reasoning.\n\nProblem: ${problem}\nContext: ${context || 'None provided'}\nConstraints: ${constraints || 'None'}\n\nUse this thinking framework:\n\n## Phase 1: Problem Deconstruction\n- What is the core question?\n- What are the hidden assumptions?\n- What are the boundaries and degrees of freedom?\n- Decompose into sub-problems\n\n## Phase 2: First Principles Analysis\n- Strip away conventions and analogies\n- Identify fundamental truths/constraints\n- Rebuild understanding from ground up\n- What would physics/logic dictate?\n\n## Phase 3: Perspective Multiplication\n- Stakeholder viewpoints (user, builder, maintainer, regulator, competitor)\n- Time horizons (immediate, 1yr, 5yr, 10yr)\n- Disciplines (engineering, economics, psychology, biology, game theory)\n- Failure modes (pre-mortem)\n\n## Phase 4: Solution Space Exploration\n- Generate 5+ distinct approaches\n- For each: mechanism, trade-offs, prerequisites, risks\n- Combine/steel-man best elements\n\n## Phase 5: Stress Testing\n- Red team your best solution\n- Edge cases, adversarial conditions, second-order effects\n- What breaks? What scales? What rots?\n\n## Phase 6: Synthesis & Recommendation\n- Final integrated solution\n- Implementation roadmap\n- Decision criteria & success metrics\n- Remaining uncertainties\n\nThink step by step. Show your work. Be rigorous.`,\n  \n  chain: `You are a reasoning engine using Chain-of-Thought with self-consistency.\n\nProblem: ${problem}\nContext: ${context || 'None'}\nIterations: ${iterations || 3}\n\nFor each iteration, provide:\n1. **Reasoning Trace** - Step-by-step logical derivation\n2. **Intermediate Conclusions** - What you've established\n3. **Confidence Score** (0-100)\n4. **Uncertainties** - What could change the conclusion\n\nAfter all iterations:\n- Compare reasoning paths\n- Identify convergence/divergence\n- Synthesize final answer with confidence calibration\n- Flag key assumptions that would flip the answer\n\nFormat each iteration clearly separated.`,\n  \n  debate: `You are a Dialectical Reasoning System. Conduct a structured debate.\n\nThesis: ${problem}\nContext: ${context || 'None'}\n\n## Round 1: Thesis (Proponent)\nStrongest arguments FOR the primary position\n\n## Round 2: Antithesis (Skeptic)\nStrongest arguments AGAINST / alternative positions\n\n## Round 3: Cross-Examination\n- Proponent responds to Antithesis\n- Skeptic responds to Proponent\n\n## Round 4: Synthesis\n- Integration of valid points from both sides\n- Nuanced position that transcends binary\n- Conditions under which each view holds\n- Remaining genuine uncertainties\n\n## Round 5: Meta-Reflection\n- What framing assumptions drove the debate?\n- What evidence would resolve key disputes?\n- How might this look from 10 years in the future?\n\nBe rigorous. Steel-man every position.`,\n  \n  mentalModels: `You are a Mental Model Library. Apply relevant frameworks to:\n\nProblem: ${problem}\nContext: ${context || 'None'}\n\nSelect and apply 5-7 mental models from:\n- **Systems Thinking**: Feedback loops, leverage points, archetypes\n- **Game Theory**: Nash equilibrium, prisoner's dilemma, signaling\n- **Economics**: Incentives, opportunity cost, marginal analysis, Coase theorem\n- **Evolution**: Variation, selection, adaptation, Red Queen effect\n- **Physics**: Entropy, activation energy, critical mass, phase transitions\n- **Information Theory**: Signal/noise, compression, channel capacity\n- **Decision Theory**: Expected value, regret minimization, Kelly criterion\n- **Cybernetics**: Control loops, requisite variety, homeostasis\n- **Complexity**: Emergence, attractors, edge of chaos\n- **Psychology**: Cognitive biases, dual process, motivation\n\nFor each model:\n1. Core principle\n2. Application to this problem\n3. Key insight generated\n4. Limitations of this lens\n\nSynthesize: What do models agree on? Where do they conflict? What's the meta-insight?`,\n  \n  futures: `You are a Strategic Foresight Practitioner. Map futures for:\n\nProblem: ${problem}\nTime Horizon: ${context || '5-10 years'}\n\n## 1. Scenario Generation\nCreate 4 divergent scenarios (2x2 matrix):\n- Axis 1: Key uncertainty A\n- Axis 2: Key uncertainty B\n\n## 2. Scenario Narratives\nFor each: driving forces, weak signals, timeline, implications\n\n## 3. Implications Analysis\n- Opportunities per scenario\n- Threats per scenario\n- No-regret moves (good in all)\n- Big bets (scenario-specific)\n\n## 4. Monitoring Framework\n- Leading indicators per scenario\n- Trigger points for strategy shifts\n- Review cadence\n\n## 5. Robust Strategy\n- Core commitments (invariant)\n- Adaptive options (conditional)\n- Exit criteria\n\nUse: STEEP analysis, causal layered analysis, backcasting.`,\n  \n  firstPrinciples: `You are a First Principles Thinker (Elon Musk / Aristotle style).\n\nProblem: ${problem}\nConstraints: ${constraints || 'Physical laws only'}\n\n## Step 1: Identify Assumptions\nList every assumption, convention, \"best practice\", analogy\n\n## Step 2: Reduce to Fundamentals\nFor each assumption, ask \"Why?\" recursively until you hit:\n- Physical laws\n- Mathematical truths\n- Axiomatic human needs\n- Nothing further reducible\n\n## Step 3: Reconstruct\nFrom fundamentals, build up possible solutions\n- What MUST be true?\n- What COULD be true?\n- What's the theoretical optimum?\n\n## Step 4: Gap Analysis\nCompare reconstructed optimum to current approaches\n- Where does convention deviate from physics?\n- What's the delta?\n- What prevents closing it?\n\n## Step 5: Actionable Path\n- Near-term steps toward optimum\n- Experiments to validate assumptions\n- Milestones\n\nBe brutally honest. Ignore \"that's not how it's done.\"`\n};\n\nconst thinkingMode = mode || 'deep';\nconst systemPrompt = modes[thinkingMode] || modes.deep;\n\nreturn [{\n  json: {\n    systemPrompt,\n    problem,\n    mode: thinkingMode,\n    model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n    temperature: temperature || 0.3,\n    maxTokens: 8000\n  }\n}];"
+      },
+      "id": "2",
+      "name": "Build Thinking Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.problem }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "3",
+      "name": "OpenAI - Deep Reasoning",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\nconst { problem, mode } = $json.body;\n\nconst sections = {}\nconst currentSection = 'full';\n\nresponse.split('\\n').forEach(line => {\n  const match = line.match(/^##\\s+(.+)$/);\n  if (match) {\n    sections[match[1].trim().toLowerCase().replace(/\\s+/g, '_')] = '';\n    currentSection = match[1].trim().toLowerCase().replace(/\\s+/g, '_');\n  } else if (sections[currentSection] !== undefined) {\n    sections[currentSection] += line + '\\n';\n  }\n});\n\nconst wordCount = response.split(/\\s+/).length;\nconst hasStructure = Object.keys(sections).length > 1;\n\nreturn [{ json: {\n  success: true,\n  problem,\n  mode,\n  fullResponse: response,\n  sections,\n  wordCount,\n  hasStructure,\n  model: $json.model,\n  usage: $json.usage,\n  timestamp: new Date().toISOString()\n} }];"
+      },
+      "id": "4",
+      "name": "Parse Thinking Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { fullResponse, problem, mode } = $json;\n\nconst critiquePrompt = `You are a rigorous critic. Evaluate this reasoning for:\n\nProblem: ${problem}\nMode: ${mode}\n\nReasoning:\n${fullResponse}\n\nCheck:\n1. **Logical Validity** - Any fallacies, gaps, non-sequiturs?\n2. **Evidence Quality** - Claims backed? Sources cited?\n3. **Completeness** - Missing perspectives, edge cases?\n4. **Bias Detection** - Confirmation bias, availability, anchoring?\n5. **Calibration** - Confidence matched to evidence?\n6. **Actionability** - Can this actually be executed?\n7. **Falsifiability** - What would prove this wrong?\n\nProvide specific criticisms with quotes. Score each dimension 1-10.\nThen provide an improved version of the weakest section.`;\n\nreturn [{ json: {\n  systemPrompt: 'You are a hyper-critical thinking auditor. Be thorough and specific.',\n  userPrompt: critiquePrompt,\n  model: 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.2,\n  maxTokens: 4000\n} }];"
+      },
+      "id": "5",
+      "name": "Self-Critique Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": 0.2,
+        "maxTokens": 4000,
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "nvidia/nemotron-3-ultra-550b-a55b"
+      },
+      "id": "6",
+      "name": "OpenAI - Self Critique",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        1250,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const critique = $json.choices[0].message.content;\nreturn [{ json: { critique, usage: $json.usage } }];"
+      },
+      "id": "7",
+      "name": "Format Critique",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { fullResponse, sections, critique, problem, mode, wordCount, hasStructure } = $json;\n\nconst markdown = `# Deep Thinking: ${problem.substring(0, 80)}...\n\n**Mode:** ${mode}\n**Generated:** ${new Date().toISOString()}\n**Word Count:** ${wordCount}\n**Structured:** ${hasStructure ? 'Yes' : 'No'}\n\n---\n\n## Reasoning\n\n${fullResponse}\n\n---\n\n## Self-Critique\n\n${critique}\n\n---\n\n## Key Sections\n\n${Object.entries(sections).map(([k, v]) => `### ${k.replace(/_/g, ' ').toUpperCase()}\\n${v.substring(0, 500)}${v.length > 500 ? '...' : ''}`).join('\\n\\n')}`;\n\nreturn [{ json: { markdown, success: true } }];"
+      },
+      "id": "8",
+      "name": "Generate Thinking Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst { markdown, problem } = $json;\nconst filename = `thinking-${problem.substring(0, 30).replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.md`;\nconst savePath = path.join('/tmp/n8n-thinking', filename);\n\nif (!fs.existsSync(path.dirname(savePath))) {\n  fs.mkdirSync(path.dirname(savePath), { recursive: true });\n}\n\nfs.writeFileSync(savePath, markdown);\n\nreturn [{ json: { success: true, filePath: savePath, filename } }];"
+      },
+      "id": "9",
+      "name": "Save Thinking Document",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "10",
+      "name": "Respond - Thinking Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { problem, context, model } = $json.body;\n\nconst prompt = `Apply the \"Six Thinking Hats\" method to:\n\nProblem: ${problem}\nContext: ${context || 'None'}\n\n## White Hat (Data & Facts)\n- What do we know? What data exists? What's missing?\n\n## Red Hat (Emotions & Intuition)\n- Gut feelings, fears, hopes, aesthetic judgments\n\n## Black Hat (Caution & Risks)\n- What could go wrong? Weaknesses, dangers, why it might fail\n\n## Yellow Hat (Optimism & Benefits)\n- What could go right? Benefits, value, upside scenarios\n\n## Green Hat (Creativity & Alternatives)\n- New ideas, alternatives, lateral thinking, provocation\n\n## Blue Hat (Process & Synthesis)\n- Summary, next steps, decision framework, meta-reflection\n\nBe thorough per hat. Then synthesize.\n\nOutput as structured sections.`;\n\nreturn [{ json: {\n  systemPrompt: 'You are a facilitator of structured parallel thinking.',\n  userPrompt: prompt,\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.3,\n  maxTokens: 5000\n} }];"
+      },
+      "id": "11",
+      "name": "Six Hats Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "12",
+      "name": "OpenAI - Six Hats",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const hats = $json.choices[0].message.content;\nreturn [{ json: { success: true, hats, usage: $json.usage } }];"
+      },
+      "id": "13",
+      "name": "Format Six Hats",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "14",
+      "name": "Respond - Six Hats",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { problem, options, criteria, model } = $json.body;\n\nconst prompt = `Perform a structured decision analysis for:\n\nDecision: ${problem}\nOptions: ${JSON.stringify(options || ['Option A', 'Option B', 'Option C'], null, 2)}\nCriteria: ${JSON.stringify(criteria || ['Impact', 'Effort', 'Risk', 'Reversibility', 'Strategic Alignment'], null, 2)}\n\n## 1. Decision Matrix\nScore each option 1-10 on each criterion with justification\n\n## 2. Weighted Scoring\nAssign weights to criteria (sum=100), calculate weighted scores\n\n## 3. Sensitivity Analysis\n- Which criteria weights flip the decision?\n- Threshold analysis\n\n## 4. Regret Minimization\n- Max regret per option\n- Minimax regret choice\n\n## 5. Expected Value (if probabilistic)\n- Probabilities per outcome per option\n- EV calculation\n\n## 6. Real Options Value\n- Option to defer, expand, abandon\n- Black-Scholes style intuition\n\n## 7. Recommendation\n- Primary choice with confidence\n- Conditions to switch\n- Next steps to reduce uncertainty\n\nBe quantitative where possible.`;\n\nreturn [{ json: {\n  systemPrompt: 'You are a Decision Scientist. Use structured, quantitative methods.',\n  userPrompt: prompt,\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.2,\n  maxTokens: 5000\n} }];"
+      },
+      "id": "15",
+      "name": "Decision Analysis Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "16",
+      "name": "OpenAI - Decision Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        700
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const analysis = $json.choices[0].message.content;\nreturn [{ json: { success: true, analysis, usage: $json.usage } }];"
+      },
+      "id": "17",
+      "name": "Format Decision Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "18",
+      "name": "Respond - Decision Analysis",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Thinking Request": {
+      "main": [
+        [
+          {
+            "node": "Build Thinking Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Thinking Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Deep Reasoning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Deep Reasoning": {
+      "main": [
+        [
+          {
+            "node": "Parse Thinking Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Self-Critique Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Thinking Response": {
+      "main": [
+        [
+          {
+            "node": "Generate Thinking Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Self-Critique Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Self Critique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Self Critique": {
+      "main": [
+        [
+          {
+            "node": "Format Critique",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Critique": {
+      "main": [
+        [
+          {
+            "node": "Generate Thinking Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Thinking Report": {
+      "main": [
+        [
+          {
+            "node": "Save Thinking Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Thinking Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Six Hats Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Six Hats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Six Hats": {
+      "main": [
+        [
+          {
+            "node": "Format Six Hats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Six Hats": {
+      "main": [
+        [
+          {
+            "node": "Respond - Six Hats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Analysis Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Decision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Decision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Decision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Decision Analysis": {
+      "main": [
+        [
+          {
+            "node": "Respond - Decision Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "high-thinking-bot",
+  "tags": []
+}

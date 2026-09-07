@@ -1,0 +1,1010 @@
+{
+  "name": "Cloud Deployment Bot - K8s, Terraform, Multi-Cloud",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/terraform/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Generate Terraform",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        100
+      ],
+      "webhookId": "cloud-terraform-generate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/k8s/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook - Generate K8s Manifests",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "cloud-k8s-generate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/helm/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Webhook - Generate Helm Chart",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        500
+      ],
+      "webhookId": "cloud-helm-generate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/deploy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Webhook - Deploy Infrastructure",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        700
+      ],
+      "webhookId": "cloud-deploy"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/validate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Webhook - Validate Config",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        900
+      ],
+      "webhookId": "cloud-validate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cloud/cost-estimate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Webhook - Cost Estimation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        1100
+      ],
+      "webhookId": "cloud-cost"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { requirements, cloudProvider, environment, modules, existingCode, model } = $json.body;\\\n\\\nconst providerModules = {\\\n  aws: ['vpc', 'eks', 'rds', 'elasticache', 's3', 'cloudfront', 'route53', 'acm', 'iam', 'kms'],\\\n  gcp: ['vpc', 'gke', 'cloudsql', 'memorystore', 'storage', 'cdn', 'dns', 'certificatemanager', 'iam', 'kms'],\\\n  azure: ['vnet', 'aks', 'postgresql', 'redis', 'storage', 'cdn', 'dns', 'keyvault', 'rbac'],\\\n  multi: ['aws', 'gcp', 'azure']\\\n};\\\n\\\nconst provider = cloudProvider || 'aws';\\\nconst mods = modules || providerModules[provider] || providerModules.aws;\\\n\\\nconst systemPrompt = `You are a Senior Cloud Architect & Terraform Expert. Generate production-ready Terraform code.\\\n\\\nRequirements:\\\n${requirements}\\\n\\\nCloud Provider: ${provider}\\\nEnvironment: ${environment || 'production'}\\\nModules to include: ${mods.join(', ')}\\\n\\\nExisting code context:\\\n${existingCode || 'None'}\\\n\\\nGenerate:\\\n1. **Directory structure** with modules/\\\n2. **Main configuration** (main.tf, variables.tf, outputs.tf, versions.tf)\\\n3. **Module files** for each component\\\n4. **Backend configuration** (S3/GCS/Azure Blob for state)\\\n5. **Provider configuration** with aliases for multi-region\\\n6. **Variable definitions** with validation rules\\\n7. **Outputs** for all important resources\\\n8. **Locals** for computed values\\\n9. **Data sources** for existing resources\\\n10. **Lifecycle rules** for safe updates\\\n\\\nBest practices:\\\n- Use modules for reusability\\\n- Pin provider versions\\\n- Enable state locking\\\n- Use consistent naming (${environment}-${project}-${resource})\\\n- Tag all resources\\\n- Least privilege IAM\\\n- Encryption at rest/transit\\\n- Private endpoints where possible\\\n- Cost optimization (right-sizing, lifecycle policies)\\\n\\\nOutput as complete file tree with content.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate Terraform for: ${requirements}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000,\\\n  provider,\\\n  environment: environment || 'production'\\\n} }];"
+      },
+      "id": "7",
+      "name": "Build Terraform Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "8",
+      "name": "OpenAI - Generate Terraform",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { provider, environment } = $json.body;\\\n\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:hcl|terraform)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:\\/\\/|#)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `terraform/${provider}/${environment}/generated_${files.length + 1}.tf`;\\\n  files.push({ path, content });\\\n}\\\n\\\nif (files.length === 0) {\\\n  files.push({ path: `terraform/${provider}/${environment}/main.tf`, content: response });\\\n}\\\n\\\nreturn [{ json: {\\\n  success: true,\\\n  provider,\\\n  environment,\\\n  files,\\\n  rawResponse: response,\\\n  usage: $json.usage\\\n} }];"
+      },
+      "id": "9",
+      "name": "Parse Terraform Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, provider, environment } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\n\\\nconst baseDir = path.join('/tmp/n8n-cloud', 'terraform', provider, environment);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\n\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('terraform/', '').replace(`${provider}/${environment}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\n\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "10",
+      "name": "Save Terraform Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "11",
+      "name": "Respond - Terraform Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { appName, image, replicas, resources, envVars, secrets, ingress, autoscaling, probes, serviceAccount, rbac, networkPolicy, podDisruptionBudget, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Kubernetes Expert. Generate production-ready K8s manifests.\\\n\\\nApplication: ${appName}\\\nImage: ${image}\\\nReplicas: ${replicas || 3}\\\nResources: ${JSON.stringify(resources || { requests: { cpu: '100m', memory: '128Mi' }, limits: { cpu: '500m', memory: '512Mi' } })}\\\nEnv Vars: ${JSON.stringify(envVars || {})}\\\nSecrets: ${JSON.stringify(secrets || {})}\\\nIngress: ${JSON.stringify(ingress || { enabled: true, host: 'app.example.com', tls: true })}\\\nAutoscaling: ${JSON.stringify(autoscaling || { enabled: true, minReplicas: 3, maxReplicas: 20, targetCPU: 70 })}\\\nProbes: ${JSON.stringify(probes || { liveness: '/health/live', readiness: '/health/ready', startup: '/health/startup' })}\\\nServiceAccount: ${serviceAccount || 'default'}\\\nRBAC: ${rbac || false}\\\nNetworkPolicy: ${networkPolicy || true}\\\nPodDisruptionBudget: ${podDisruptionBudget || true}\\\n\\\nGenerate manifests for:\\\n1. **Namespace** with labels/annotations\\\n2. **ServiceAccount** with annotations (IRSA, Workload Identity)\\\n3. **RBAC** (Role, RoleBinding) if needed\\\n4. **ConfigMap** for non-secret config\\\n5. **Secret** for sensitive data (sealed-secrets compatible)\\\n6. **Deployment** with:\\\n   - Resource requests/limits\\\n   - Probes (liveness, readiness, startup)\\\n   - Security context (non-root, read-only rootfs, drop capabilities)\\\n   - Pod topology spread constraints\\\n   - Affinity/anti-affinity\\\n   - Image pull secrets\\\n7. **Service** (ClusterIP, Headless if needed)\\\n8. **HorizontalPodAutoscaler** (HPA) with custom metrics support\\\n9. **Ingress** with TLS, annotations (cert-manager, nginx)\\\n10. **NetworkPolicy** (deny-all ingress, allow specific)\\\n11. **PodDisruptionBudget** (maxUnavailable: 25%)\\\n12. **ServiceMonitor** for Prometheus\\\n13. **VerticalPodAutoscaler** (VPA) recommendation\\\n\\\nUse Kustomize structure:\\\n- base/\\\n- overlays/dev, staging, prod\\\n\\\nOutput as YAML files with proper API versions.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate K8s manifests for ${appName}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000\\\n} }];"
+      },
+      "id": "12",
+      "name": "Build K8s Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "13",
+      "name": "OpenAI - Generate K8s",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { appName } = $json.body;\\\n\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*#\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `k8s/${appName}/generated_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\n\\\nif (files.length === 0) {\\\n  files.push({ path: `k8s/${appName}/deployment.yaml`, content: response });\\\n}\\\n\\\nreturn [{ json: { success: true, appName, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "14",
+      "name": "Parse K8s Manifests",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, appName } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\n\\\nconst baseDir = path.join('/tmp/n8n-cloud', 'k8s', appName);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\n\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace(`k8s/${appName}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\n\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "15",
+      "name": "Save K8s Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "16",
+      "name": "Respond - K8s Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { chartName, appVersion, description, dependencies, values, templates, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Helm Chart Expert. Generate a complete, production-ready Helm chart.\\\n\\\nChart: ${chartName}\\\nApp Version: ${appVersion || '1.0.0'}\\\nDescription: ${description || 'A Helm chart for Kubernetes'}\\\nDependencies: ${JSON.stringify(dependencies || [])}\\\nCustom Values: ${JSON.stringify(values || {})}\\\nCustom Templates: ${JSON.stringify(templates || [])}\\\n\\\nGenerate chart structure:\\\n${chartName}/\\\n├── Chart.yaml\\\n├── values.yaml\\\n├── values.schema.json\\\n├── .helmignore\\\n├── README.md\\\n├── templates/\\\n│   ├── _helpers.tpl\\\n│   ├── deployment.yaml\\\n│   ├── service.yaml\\\n│   ├── ingress.yaml\\\n│   ├── hpa.yaml\\\n│   ├── servicemonitor.yaml\\\n│   ├── networkpolicy.yaml\\\n│   ├── pdb.yaml\\\n│   ├── configmap.yaml\\\n│   ├── secret.yaml\\\n│   ├── serviceaccount.yaml\\\n│   ├── role.yaml\\\n│   ├── rolebinding.yaml\\\n│   └── NOTES.txt\\\n├── charts/\\\n└── tests/\\\n    └── test-connection.yaml\\\n\\\nBest practices:\\\n- Use _helpers.tpl for common templates\\\n- Validate values with schema\\\n- Support all standard K8s features\\\n- Conditional templates with .Values.enabled\\\n- Proper label selectors\\\n- Resource quotas/limits\\\n- Security contexts\\\n- Pod topology spread\\\n- Image pull policies\\\n- Lifecycle hooks\\\n- Chart testing with ct`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate Helm chart: ${chartName}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000\\\n} }];"
+      },
+      "id": "17",
+      "name": "Build Helm Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "18",
+      "name": "OpenAI - Generate Helm",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { chartName } = $json.body;\\\n\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*#\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `${chartName}/generated_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\n\\\nif (files.length === 0) {\\\n  files.push({ path: `${chartName}/Chart.yaml`, content: response });\\\n}\\\n\\\nreturn [{ json: { success: true, chartName, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "19",
+      "name": "Parse Helm Chart",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, chartName } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\n\\\nconst baseDir = path.join('/tmp/n8n-cloud', 'helm', chartName);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\n\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace(`${chartName}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\n\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "20",
+      "name": "Save Helm Chart",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "21",
+      "name": "Respond - Helm Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { action, workingDir, terraformVars, k8sContext, k8sNamespace, helmRelease, helmChart, helmValues, dryRun, model } = $json.body;\\\n\\\nconst commands = [];\\\n\\\nswitch (action) {\\\n  case 'terraform_init':\\\n    commands.push('terraform init -upgrade');\\\n    break;\\\n  case 'terraform_plan':\\\n    const tfVars = terraformVars ? Object.entries(terraformVars).map(([k,v]) => `-var '${k}=${v}'`).join(' ') : '';\\\n    commands.push(`terraform plan ${tfVars} -out=tfplan`);\\\n    break;\\\n  case 'terraform_apply':\\\n    commands.push('terraform apply -auto-approve tfplan');\\\n    break;\\\n  case 'terraform_destroy':\\\n    commands.push('terraform destroy -auto-approve');\\\n    break;\\\n  case 'k8s_apply':\\\n    const ns = k8sNamespace ? `-n ${k8sNamespace}` : '';\\\n    const ctx = k8sContext ? `--context ${k8sContext}` : '';\\\n    commands.push(`kubectl ${ctx} apply -k ${workingDir} ${ns}`);\\\n    break;\\\n  case 'k8s_delete':\\\n    commands.push(`kubectl delete -k ${workingDir} ${k8sNamespace ? `-n ${k8sNamespace}` : ''}`);\\\n    break;\\\n  case 'helm_install':\\\n    const vals = helmValues ? Object.entries(helmValues).map(([k,v]) => `--set ${k}=${v}`).join(' ') : '';\\\n    const nsFlag = k8sNamespace ? `-n ${k8sNamespace} --create-namespace` : '';\\\n    const dry = dryRun ? '--dry-run' : '';\\\n    commands.push(`helm upgrade --install ${helmRelease} ${helmChart} ${vals} ${nsFlag} ${dry}`);\\\n    break;\\\n  case 'helm_uninstall':\\\n    commands.push(`helm uninstall ${helmRelease} ${k8sNamespace ? `-n ${k8sNamespace}` : ''}`);\\\n    break;\\\n  case 'helm_template':\\\n    commands.push(`helm template ${helmRelease} ${helmChart} ${vals} ${nsFlag}`);\\\n    break;\\\n  case 'validate_all':\\\n    commands.push('terraform fmt -check');\\\n    commands.push('terraform validate');\\\n    commands.push('kubectl kustomize ${workingDir}');\\\n    commands.push(`helm lint ${helmChart}`);\\\n    break;\\\n}\\\n\\\nif (commands.length === 0) {\\\n  return [{ json: { error: `Unknown action: ${action}` } }];\\\n}\\\n\\\nreturn [{ json: { commands, workingDir: workingDir || '/tmp/n8n-cloud', action } }];"
+      },
+      "id": "22",
+      "name": "Build Deploy Commands",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.commands.join(' && ') }}",
+        "options": {
+          "cwd": "={{ $json.workingDir }}",
+          "timeout": 300000
+        }
+      },
+      "id": "23",
+      "name": "Execute Deploy",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { stdout, stderr, exitCode } = $json;\\\nreturn [{ json: {\\\n  success: exitCode === 0,\\\n  exitCode,\\\n  stdout: stdout.substring(0, 10000),\\\n  stderr: stderr.substring(0, 5000),\\\n  timestamp: new Date().toISOString()\\\n} }];"
+      },
+      "id": "24",
+      "name": "Parse Deploy Output",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "25",
+      "name": "Respond - Deploy Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { terraformDir, k8sDir, helmChart, policies, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Cloud Security & Compliance Engineer. Validate infrastructure configs.\\\n\\\nDirectories to validate:\\\n- Terraform: ${terraformDir || 'Not provided'}\\\n- K8s: ${k8sDir || 'Not provided'}\\\n- Helm: ${helmChart || 'Not provided'}\\\n\\\nPolicies to check:\\\n${(policies || [\\\n  'CIS Benchmarks',\\\n  'NIST 800-53',\\\n  'PCI-DSS',\\\n  'SOC2',\\\n  'HIPAA',\\\n  'GDPR',\\\n  'AWS Well-Architected',\\\n  'GCP Security Foundations',\\\n  'Azure Security Benchmark'\\\n]).join(', ')}\\\n\\\nCheck for:\\\n1. **Security Misconfigurations**\\\n   - Public exposure (S3, security groups, ingress)\\\n   - Encryption (at rest, in transit)\\\n   - IAM least privilege\\\n   - Secrets management\\\n   - Network segmentation\\\n2. **Kubernetes Security**\\\n   - Pod security standards\\\n   - RBAC over-privilege\\\n   - Network policies\\\n   - Admission controllers\\\n   - Image provenance\\\n3. **Terraform Best Practices**\\\n   - State locking\\\n   - Module versioning\\\n   - Drift detection\\\n   - Plan analysis\\\n4. **Cost Optimization**\\\n   - Right-sizing\\\n   - Unused resources\\\n   - Lifecycle policies\\\n   - Spot/preemptible usage\\\n\\\nOutput: JSON with findings (severity: critical/high/medium/low), remediation, and compliance score.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: 'Validate infrastructure configurations',\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "26",
+      "name": "Build Validation Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "27",
+      "name": "OpenAI - Validate Config",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        900
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const validation = $json.choices[0].message.content;\\\ntry {\\\n  const parsed = JSON.parse(validation);\\\n  return [{ json: { success: true, validation: parsed, usage: $json.usage } }];\\\n} catch {\\\n  return [{ json: { success: true, validation: validation, usage: $json.usage } }];\\\n}`"
+      },
+      "id": "28",
+      "name": "Parse Validation",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "29",
+      "name": "Respond - Validation Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { terraformPlan, cloudProvider, region, environment, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a FinOps Expert. Estimate cloud costs from Terraform plan.\\\n\\\nTerraform Plan Output:\\\n${terraformPlan || 'Not provided - estimate from configuration'}\\\n\\\nCloud Provider: ${cloudProvider || 'aws'}\\\nRegion: ${region || 'us-east-1'}\\\nEnvironment: ${environment || 'production'}\\\n\\\nAnalyze and estimate monthly costs for:\\\n1. **Compute** (EC2, EKS/GKE/AKS nodes, Lambda/Cloud Functions)\\\n2. **Managed Services** (RDS, ElastiCache, DocumentDB, etc.)\\\n3. **Storage** (S3, EBS, EFS, Glacier)\\\n4. **Network** (Data transfer, Load balancers, NAT Gateway, CloudFront)\\\n5. **Security** (KMS, WAF, Shield, GuardDuty)\\\n6. **Monitoring** (CloudWatch, X-Ray, Logging)\\\n7. **Support** (Business/Enterprise support tier)\\\n\\\nFor each resource:\\\n- Resource type & configuration\\\n- Hourly/monthly rate (on-demand, reserved, savings plans)\\\n- Estimated utilization\\\n- Monthly cost\\\n- Annual cost\\\n- Cost optimization recommendations\\\n\\\nOutput structured JSON with totals by category and optimization opportunities.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: 'Estimate cloud costs',\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 5000\\\n} }];"
+      },
+      "id": "30",
+      "name": "Build Cost Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "31",
+      "name": "OpenAI - Cost Estimate",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        1100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const estimate = $json.choices[0].message.content;\\\ntry {\\\n  const parsed = JSON.parse(estimate);\\\n  return [{ json: { success: true, estimate: parsed, usage: $json.usage } }];\\\n} catch {\\\n  return [{ json: { success: true, estimate: estimate, usage: $json.usage } }];\\\n}`"
+      },
+      "id": "32",
+      "name": "Parse Cost Estimate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "33",
+      "name": "Respond - Cost Estimate",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { appName, cloudProvider, cicdPlatform, environments, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a DevOps Platform Engineer. Generate complete CI/CD pipeline.\\\n\\\nApplication: ${appName}\\\nCloud Provider: ${cloudProvider || 'aws'}\\\nCI/CD Platform: ${cicdPlatform || 'github-actions'}\\\nEnvironments: ${JSON.stringify(environments || ['dev', 'staging', 'prod'])}\\\n\\\nGenerate pipeline for:\\\n1. **Source Stage** - Checkout, dependency cache\\\n2. **Build Stage** - Compile, test, lint, security scan\\\n3. **Container Stage** - Build multi-arch image, scan, sign, push\\\n4. **Terraform Stage** - fmt, validate, plan, apply (per env)\\\n5. **K8s/Helm Stage** - Template, validate, deploy (per env)\\\n6. **Test Stage** - Integration, E2E, performance, chaos\\\n7. **Deploy Stage** - Blue/green, canary, rollback\\\n8. **Post-Deploy** - Smoke tests, monitoring verification\\\n\\\nPlatform-specific:\\\n- GitHub Actions: reusable workflows, matrix, environments\\\n- GitLab CI: DAG, rules, auto-devops\\\n- Azure Pipelines: templates, stages, approvals\\\n- Jenkins: shared libraries, declarative\\\n\\\nSecurity:\\\n- SLSA compliance\\\n- SBOM generation\\\n- Image signing (cosign)\\\n- Policy enforcement (OPA/Gatekeeper)\\\n- Secret scanning\\\n\\\nOutput: Complete pipeline config files.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate CI/CD for ${appName}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000\\\n} }];"
+      },
+      "id": "34",
+      "name": "Build CI/CD Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "35",
+      "name": "OpenAI - Generate CI/CD",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        1300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { appName, cicdPlatform } = $json.body;\\\n\\\nconst ext = cicdPlatform === 'github-actions' ? 'yml' : cicdPlatform === 'gitlab' ? 'yml' : 'jenkinsfile';\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|groovy)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `.github/workflows/${appName}_${files.length + 1}.${ext}`;\\\n  files.push({ path, content });\\\n}\\\n\\\nif (files.length === 0) {\\\n  files.push({ path: `.github/workflows/${appName}.${ext}`, content: response });\\\n}\\\n\\\nreturn [{ json: { success: true, appName, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "36",
+      "name": "Parse CI/CD Pipeline",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, appName } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\n\\\nconst baseDir = path.join('/tmp/n8n-cloud', 'cicd', appName);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\n\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path);\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\n\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "37",
+      "name": "Save CI/CD Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "38",
+      "name": "Respond - CI/CD Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        1300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Generate Terraform": {
+      "main": [
+        [
+          {
+            "node": "Build Terraform Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Terraform Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Terraform",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Terraform": {
+      "main": [
+        [
+          {
+            "node": "Parse Terraform Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Terraform Files": {
+      "main": [
+        [
+          {
+            "node": "Save Terraform Files",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Terraform Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Generate K8s Manifests": {
+      "main": [
+        [
+          {
+            "node": "Build K8s Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build K8s Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate K8s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate K8s": {
+      "main": [
+        [
+          {
+            "node": "Parse K8s Manifests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse K8s Manifests": {
+      "main": [
+        [
+          {
+            "node": "Save K8s Files",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - K8s Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Generate Helm Chart": {
+      "main": [
+        [
+          {
+            "node": "Build Helm Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Helm Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Helm",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Helm": {
+      "main": [
+        [
+          {
+            "node": "Parse Helm Chart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Helm Chart": {
+      "main": [
+        [
+          {
+            "node": "Save Helm Chart",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Helm Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Deploy Infrastructure": {
+      "main": [
+        [
+          {
+            "node": "Build Deploy Commands",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deploy Commands": {
+      "main": [
+        [
+          {
+            "node": "Execute Deploy",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Deploy": {
+      "main": [
+        [
+          {
+            "node": "Parse Deploy Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Deploy Output": {
+      "main": [
+        [
+          {
+            "node": "Respond - Deploy Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Build Validation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Validation Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Validate Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Validate Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Validation": {
+      "main": [
+        [
+          {
+            "node": "Respond - Validation Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Cost Estimation": {
+      "main": [
+        [
+          {
+            "node": "Build Cost Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Cost Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Cost Estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Cost Estimate": {
+      "main": [
+        [
+          {
+            "node": "Parse Cost Estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Cost Estimate": {
+      "main": [
+        [
+          {
+            "node": "Respond - Cost Estimate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build CI/CD Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate CI/CD",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate CI/CD": {
+      "main": [
+        [
+          {
+            "node": "Parse CI/CD Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse CI/CD Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Save CI/CD Files",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - CI/CD Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "cloud-deployment-bot",
+  "tags": []
+}

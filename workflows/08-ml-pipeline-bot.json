@@ -1,0 +1,955 @@
+{
+  "name": "AI/ML Pipeline Bot - Training, Evaluation, Deployment, Monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/data/prepare",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Prepare Data",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        100
+      ],
+      "webhookId": "ml-data-prepare"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/train",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook - Train Model",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "ml-train"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/evaluate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Webhook - Evaluate Model",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        500
+      ],
+      "webhookId": "ml-evaluate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/deploy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Webhook - Deploy Model",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        700
+      ],
+      "webhookId": "ml-deploy"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/monitor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Webhook - Monitor Model",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        900
+      ],
+      "webhookId": "ml-monitor"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ml/experiment",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Webhook - Run Experiment",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        1100
+      ],
+      "webhookId": "ml-experiment"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { source, target, format, splits, preprocessing, validation, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an ML Data Engineer. Generate data preparation pipeline code.\\\n\\\nData Source: ${source}\\\nTarget Format: ${format || 'parquet'}\\\nTrain/Val/Test Splits: ${JSON.stringify(splits || { train: 0.7, val: 0.15, test: 0.15 })}\\\nPreprocessing Steps: ${JSON.stringify(preprocessing || ['clean', 'normalize', 'encode']}\\\nValidation Rules: ${JSON.stringify(validation || {})}\\\n\\\nGenerate Python code for:\\\n1. **Data Ingestion** - Read from source (S3, GCS, DB, local, API)\\\n2. **Data Validation** - Great Expectations / Pandera schemas\\\n3. **Data Cleaning** - Handle missing, outliers, duplicates\\\n4. **Feature Engineering** - Encoding, scaling, embeddings, interactions\\\n5. **Train/Val/Test Split** - Stratified, temporal, group-aware\\\n6. **Data Versioning** - DVC / LakeFS / Delta Lake\\\n7. **Quality Reports** - Profiling (ydata-profiling), drift detection\\\n8. **Output** - Partitioned Parquet with metadata\\\n\\\nUse: pandas, polars, pyarrow, great-expectations, dvc, scikit-learn\\\nOutput: Complete pipeline script + config YAML`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Prepare data from ${source} for ML training`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "7",
+      "name": "Build Data Prep Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "8",
+      "name": "OpenAI - Generate Data Pipeline",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:python|yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/data/step_${files.length + 1}.py`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'ml_pipeline/data/prepare_data.py', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "9",
+      "name": "Parse Data Pipeline",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'data');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('ml_pipeline/data/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "10",
+      "name": "Save Data Pipeline",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "11",
+      "name": "Respond - Data Pipeline Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { task, framework, modelArch, hyperparameters, dataConfig, compute, tracking, distributed, model } = $json.body;\\\n\\\nconst frameworks = {\\\n  pytorch: { imports: 'torch, torch.nn, torch.optim', trainer: 'Trainer or custom loop' },\\\n  tensorflow: { imports: 'tensorflow as tf, keras', trainer: 'model.fit' },\\\n  lightning: { imports: 'pytorch_lightning as pl', trainer: 'pl.Trainer' },\\\n  huggingface: { imports: 'transformers, datasets, accelerate', trainer: 'Trainer' },\\\n  sklearn: { imports: 'sklearn, xgboost, lightgbm', trainer: 'fit' },\\\n  llamafactory: { imports: 'llamafactory', trainer: 'LLaMA-Factory' },\\\n  unsloth: { imports: 'unsloth, transformers', trainer: 'FastLanguageModel' }\\\n};\\\n\\\nconst fw = framework || 'pytorch';\\\nconst fwInfo = frameworks[fw] || frameworks.pytorch;\\\n\\\nconst systemPrompt = `You are an ML Engineer. Generate production training code.\\\n\\\nTask: ${task || 'classification'}\\\nFramework: ${fw}\\\nModel Architecture: ${modelArch || 'Auto'}\\\nHyperparameters: ${JSON.stringify(hyperparameters || { lr: 1e-3, batch_size: 32, epochs: 10 })}\\\nData Config: ${JSON.stringify(dataConfig || {})}\\\nCompute: ${JSON.stringify(compute || { gpus: 1, precision: '16-mixed' })}\\\nTracking: ${tracking || 'mlflow'}\\\nDistributed: ${distributed || 'ddp'}\\\n\\\nGenerate complete training script with:\\\n1. **Config Management** - Hydra / OmegaConf / YAML\\\n2. **Reproducibility** - Seeds, deterministic ops\\\n3. **Data Loading** - Dataset, DataLoader with workers\\\n4. **Model Definition** - Architecture, initialization\\\n5. **Training Loop** - Forward, backward, optimizer, scheduler\\\n6. **Validation** - Metrics, early stopping, checkpointing\\\n7. **Logging** - ${tracking} (params, metrics, artifacts, models)\\\n8. **Distributed** - ${distributed} (DDP, FSDP, DeepSpeed)\\\n9. **Mixed Precision** - AMP / BF16\\\n10. **Gradient Accumulation** - Effective batch size\\\n11. **Checkpointing** - Best/last, resume capability\\\n11. **Callbacks** - EarlyStopping, ModelCheckpoint, LRMonitor\\\n12. **Profiling** - torch.profiler / tensorboard\\\n\\\nOutput: Train script + config + requirements.txt`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate ${fw} training code for ${task}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000,\\\n  framework: fw\\\n} }];"
+      },
+      "id": "12",
+      "name": "Build Training Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "13",
+      "name": "OpenAI - Generate Training Code",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { framework } = $json.body;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:python|yaml|yml|toml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/train/${framework}_train_${files.length + 1}.py`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: `ml_pipeline/train/${framework}_train.py`, content: response });\\\nreturn [{ json: { success: true, framework, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "14",
+      "name": "Parse Training Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'train');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('ml_pipeline/train/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "15",
+      "name": "Save Training Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "16",
+      "name": "Respond - Training Code Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { modelPath, testData, metrics, thresholds, slicing, fairness, robustness, explainability, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an ML Evaluation Expert. Generate comprehensive evaluation suite.\\\n\\\nModel: ${modelPath}\\\nTest Data: ${testData}\\\nMetrics: ${JSON.stringify(metrics || ['accuracy', 'precision', 'recall', 'f1', 'roc_auc', 'pr_auc', 'log_loss', 'brier_score'])}\\\nThresholds: ${JSON.stringify(thresholds || { accuracy: 0.8, f1: 0.75 })}\\\nSlicing: ${JSON.stringify(slicing || ['overall', 'by_class', 'by_feature_quartile'])}\\\nFairness: ${fairness !== false}\\\nRobustness: ${robustness !== false}\\\nExplainability: ${explainability !== false}\\\n\\\nGenerate evaluation code for:\\\n1. **Standard Metrics** - All requested metrics with confidence intervals\\\n2. **Slice-based Evaluation** - Performance per subgroup\\\n3. **Fairness Metrics** - Demographic parity, equal opportunity, calibration\\\n4. **Robustness Tests** - Adversarial, OOD, corruption, stress\\\n4. **Explainability** - SHAP, LIME, feature importance, counterfactuals\\\n5. **Model Cards** - Auto-generated documentation\\\n6. **Comparison** - Baseline vs candidate, statistical significance\\\n7. **Data Quality** - Drift detection (KS, PSI, Jensen-Shannon)\\\n8. **Report** - HTML/PDF with visualizations\\\n\\\nTools: sklearn, scipy, shap, alibi, evidently, fairlearn, mlflow\\\nOutput: Evaluation script + report template`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate evaluation for model at ${modelPath}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "17",
+      "name": "Build Evaluation Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "18",
+      "name": "OpenAI - Generate Evaluation",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:python|yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/evaluate/eval_${files.length + 1}.py`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'ml_pipeline/evaluate/evaluate.py', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "19",
+      "name": "Parse Evaluation Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'evaluate');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('ml_pipeline/evaluate/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "20",
+      "name": "Save Evaluation Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "21",
+      "name": "Respond - Evaluation Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { modelPath, targetPlatform, servingFramework, optimization, scaling, monitoring, model } = $json.body;\\\n\\\nconst platforms = {\\\n  k8s: { runtime: 'KServe / Seldon / Triton', autoscaling: 'HPA + KEDA' },\\\n  vertex: { runtime: 'Vertex AI Endpoints', autoscaling: 'Built-in' },\\\n  sagemaker: { runtime: 'SageMaker Endpoints', autoscaling: 'Application Auto Scaling' },\\\n  azure: { runtime: 'Azure ML Endpoints', autoscaling: 'Built-in' },\\\n  runpod: { runtime: 'RunPod Serverless', autoscaling: 'Per-request' },\\\n  modal: { runtime: 'Modal Functions', autoscaling: 'Built-in' },\\\n  local: { runtime: 'FastAPI + Uvicorn / Triton', autoscaling: 'Manual' }\\\n};\\\n\\\nconst platform = targetPlatform || 'k8s';\\\nconst info = platforms[platform] || platforms.k8s;\\\nconst fw = servingFramework || 'fastapi';\\\nconst opt = optimization || 'onnx';\\\n\\\nconst systemPrompt = `You are an ML Deployment Engineer. Generate production serving infrastructure.\\\n\\\nModel: ${modelPath}\\\nPlatform: ${platform}\\\nServing Framework: ${fw}\\\nOptimization: ${opt} (ONNX, TensorRT, TorchScript, OpenVINO, quantization)\\\nScaling: ${JSON.stringify(scaling || { minReplicas: 1, maxReplicas: 10, targetLatency: 100 })}\\\nMonitoring: ${monitoring || 'prometheus+grafana'}\\\n\\\nGenerate:\\\n1. **Model Optimization** - Export to ${opt}, quantization (INT8/FP16), compilation\\\n2. **Serving Container** - ${fw} with health checks, batching, streaming\\\n3. **K8s Manifests** - ${info.runtime} InferenceService / Deployment + Service\\\n4. **Autoscaling** - ${info.autoscaling} with custom metrics (queue depth, latency)\\\n5. **Ingress/Gateway** - TLS, rate limiting, auth, canary routing\\\n6. **Model Registry** - MLflow / Vertex Model Registry / SageMaker Model Registry\\\n7. **A/B Testing** - Traffic splitting, shadow deployment\\\n8. **Monitoring** - Latency, throughput, error rate, drift, data quality\\\n9. **Logging** - Structured JSON, request/response sampling\\\n10. **CI/CD** - Build, test, deploy, rollback pipeline\\\n\\\nOutput: Dockerfile, K8s/Helm, monitoring dashboards, deploy scripts`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Deploy model ${modelPath} to ${platform}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000\\\n} }];"
+      },
+      "id": "22",
+      "name": "Build Deployment Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "23",
+      "name": "OpenAI - Generate Deployment",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        700
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { targetPlatform } = $json.body;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:dockerfile|yaml|yml|python|bash)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/deploy/${targetPlatform}_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: `ml_pipeline/deploy/${targetPlatform}_deploy.yaml`, content: response });\\\nreturn [{ json: { success: true, platform: targetPlatform, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "24",
+      "name": "Parse Deployment Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, platform } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'deploy', platform);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace(`ml_pipeline/deploy/${platform}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "25",
+      "name": "Save Deployment Files",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "26",
+      "name": "Respond - Deployment Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { modelEndpoint, metrics, alerting, driftDetection, logging, dashboard, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an ML Observability Engineer. Generate monitoring stack.\\\n\\\nModel Endpoint: ${modelEndpoint}\\\nMetrics to Track: ${JSON.stringify(metrics || ['latency_p50', 'latency_p99', 'throughput', 'error_rate', 'prediction_drift', 'feature_drift', 'accuracy_proxy'])}\\\nAlerting: ${alerting || 'pagerduty+slack'}\\\nDrift Detection: ${driftDetection !== false}\\\nLogging: ${logging || 'structured_json'}\\\nDashboard: ${dashboard || 'grafana'}\\\n\\\nGenerate:\\\n1. **Prometheus Metrics** - Custom metrics exporter from model server\\\n2. **Grafana Dashboards** - Latency, throughput, errors, drift, business metrics\\\n3. **Alert Rules** - PrometheusRule / Alertmanager config\\\n4. **Drift Detection** - Evidently / WhyLabs / custom (PSI, KS, chi-square)\\\n5. **Data Quality** - Great Expectations on inference inputs\\\n6. **Model Performance** - Proxy metrics when labels delayed\\\n7. **Log Aggregation** - Loki / ELK / CloudWatch\\\n7. **Distributed Tracing** - OpenTelemetry / Jaeger\\\n8. **SLO/SLI** - Error budget, burn rate alerts\\\n9. **Runbook** - Auto-generated incident response\\\n10. **Retraining Trigger** - Drift/performance threshold -> retrain pipeline\\\n\\\nOutput: Prometheus rules, Grafana JSON, Alertmanager config, drift jobs`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate monitoring for ${modelEndpoint}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "27",
+      "name": "Build Monitoring Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "28",
+      "name": "OpenAI - Generate Monitoring",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        900
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|json|promql)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/monitor/monitoring_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'ml_pipeline/monitor/monitoring.yaml', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "29",
+      "name": "Parse Monitoring Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'monitor');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('ml_pipeline/monitor/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "30",
+      "name": "Save Monitoring Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "31",
+      "name": "Respond - Monitoring Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { experimentName, searchSpace, algorithm, maxTrials, objective, framework, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an ML Researcher. Design and run hyperparameter optimization experiment.\\\n\\\nExperiment: ${experimentName}\\\nSearch Space: ${JSON.stringify(searchSpace || {\\\n  lr: { type: 'loguniform', low: 1e-5, high: 1e-1 },\\\n  batch_size: { type: 'choice', values: [16, 32, 64, 128] },\\\n  hidden_dim: { type: 'choice', values: [128, 256, 512, 1024] },\\\n  dropout: { type: 'uniform', low: 0.1, high: 0.5 },\\\n  num_layers: { type: 'choice', values: [2, 3, 4, 6] }\\\n})}\\\nAlgorithm: ${algorithm || 'tpe'}\\\nMax Trials: ${maxTrials || 50}\\\nObjective: ${objective || 'val_f1'}\\\nFramework: ${framework || 'optuna'}\\\n\\\nGenerate:\\\n1. **Study Definition** - Optuna / Ray Tune / Hyperopt / Ax\\\n2. **Search Space** - Proper distributions, constraints\\\n3. **Pruning** - MedianPruner, Hyperband, ASHA\\\n4. **Multi-objective** - Pareto frontier if multiple objectives\\\n5. **Parallelization** - Distributed trials\\\n6. **Storage** - RDB (PostgreSQL) for persistence\\\n7. **Visualization** - Optuna dashboard, importance plots\\\n8. **Reproducibility** - Fixed seeds, versioned search space\\\n9. **Early Stopping** - Unpromising trials\\\n10. **Best Config Export** - YAML for production training\\\n\\\nOutput: Experiment script + launch commands + analysis notebook`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Design HPO experiment: ${experimentName}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.2,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "32",
+      "name": "Build Experiment Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "33",
+      "name": "OpenAI - Generate Experiment",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        1100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { experimentName } = $json.body;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:python|yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `ml_pipeline/experiments/${experimentName}_${files.length + 1}.py`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: `ml_pipeline/experiments/${experimentName}.py`, content: response });\\\nreturn [{ json: { success: true, experimentName, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "34",
+      "name": "Parse Experiment Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, experimentName } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-ml', 'experiments', experimentName);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace(`ml_pipeline/experiments/${experimentName}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "35",
+      "name": "Save Experiment Code",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "36",
+      "name": "Respond - Experiment Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        1100
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Build Data Prep Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Data Prep Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Data Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Data Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Parse Data Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Data Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Save Data Pipeline",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Data Pipeline Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Train Model": {
+      "main": [
+        [
+          {
+            "node": "Build Training Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Training Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Training Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Training Code": {
+      "main": [
+        [
+          {
+            "node": "Parse Training Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Training Code": {
+      "main": [
+        [
+          {
+            "node": "Save Training Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Training Code Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Evaluate Model": {
+      "main": [
+        [
+          {
+            "node": "Build Evaluation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Evaluation Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Parse Evaluation Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Evaluation Code": {
+      "main": [
+        [
+          {
+            "node": "Save Evaluation Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Evaluation Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Deploy Model": {
+      "main": [
+        [
+          {
+            "node": "Build Deployment Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deployment Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Deployment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Deployment": {
+      "main": [
+        [
+          {
+            "node": "Parse Deployment Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Deployment Files": {
+      "main": [
+        [
+          {
+            "node": "Save Deployment Files",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Deployment Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Monitor Model": {
+      "main": [
+        [
+          {
+            "node": "Build Monitoring Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Monitoring Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Parse Monitoring Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Monitoring Config": {
+      "main": [
+        [
+          {
+            "node": "Save Monitoring Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Monitoring Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Run Experiment": {
+      "main": [
+        [
+          {
+            "node": "Build Experiment Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Experiment Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Experiment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Experiment": {
+      "main": [
+        [
+          {
+            "node": "Parse Experiment Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Experiment Code": {
+      "main": [
+        [
+          {
+            "node": "Save Experiment Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Experiment Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "ml-pipeline-bot",
+  "tags": []
+}

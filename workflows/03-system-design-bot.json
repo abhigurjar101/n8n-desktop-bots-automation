@@ -1,0 +1,408 @@
+{
+  "name": "System Design Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "system-design",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Design Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "system-design"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { task, requirements, constraints, scale, techStack, existingArchitecture, model } = $json.body;\\\n\\\nconst systemPrompts = {\\\n  design: `You are a Principal Software Architect with 20+ years experience designing distributed systems at scale (Google, Amazon, Netflix level).\\\n\\\nDesign a comprehensive system architecture for: ${requirements}\\\n\\\nConstraints:\\\n- Scale: ${scale || 'Not specified'}\\\n- Tech Stack Preferences: ${techStack || 'Open'}\\\n- Constraints: ${constraints || 'None'}\\\n- Existing Architecture: ${existingArchitecture || 'Greenfield'}\\\n\\\nProvide:\\\n1. **High-Level Architecture** - Component diagram description, data flow\\\n2. **Service Breakdown** - Microservices/modules with responsibilities\\\n3. **Data Architecture** - Database choices, schema design, caching strategy\\\n4. **API Design** - REST/GraphQL/gRPC contracts, versioning\\\n5. **Infrastructure** - Cloud provider, containers, orchestration, CI/CD\\\n6. **Scalability Patterns** - Horizontal scaling, load balancing, sharding\\\n7. **Reliability** - Fault tolerance, circuit breakers, retries, observability\\\n8. **Security** - AuthZ/AuthN, encryption, compliance\\\n9. **Cost Optimization** - Resource estimation, cost-saving strategies\\\n10. **Trade-offs** - CAP theorem decisions, consistency vs availability\\\n11. **Implementation Roadmap** - Phased approach with milestones\\\n12. **Risks & Mitigations**\\\n\\\nUse ASCII diagrams where helpful. Be specific with technology choices and justify them.`,\\\n  \\\n  review: `You are a Principal Architect reviewing this system design:\\\n\\\n${existingArchitecture}\\\n\\\nRequirements: ${requirements}\\\n\\\nProvide a thorough architecture review covering:\\\n1. **Strengths** - What works well\\\n2. **Critical Issues** - Blockers or major risks\\\n3. **Scalability Concerns** - Bottlenecks at 10x/100x load\\\n4. **Reliability Gaps** - Single points of failure, missing observability\\\n5. **Security Vulnerabilities** - Threat model gaps\\\n6. **Operational Complexity** - Deployment, debugging, on-call burden\\\n7. **Cost Inefficiencies** - Over-provisioned or wrong service choices\\\n8. **Technical Debt** - Shortcuts that will hurt later\\\n9. **Specific Recommendations** - Prioritized action items\\\n10. **Alternative Approaches** - Better patterns for key decisions`, \\\n  \\\n  capacity: `You are a Capacity Planning Expert. Plan capacity for:\\\n\\\nRequirements: ${requirements}\\\nScale Target: ${scale}\\\nCurrent Architecture: ${existingArchitecture || 'New design'}\\\n\\\nCalculate:\\\n1. **Traffic Estimates** - RPS, peak vs average, growth projections\\\n2. **Compute Requirements** - CPU, memory, instances per service\\\n3. **Storage Needs** - Database size, blob storage, logs, backups\\\n4. **Network Bandwidth** - Ingress/egress, inter-service, CDN\\\n5. **Database Capacity** - Connections, QPS, shard count\\\n6. **Cache Sizing** - Hit rates, memory requirements\\\n7. **Cost Projection** - Monthly/annual cloud costs by service\\\n8. **Scaling Triggers** - Metrics and thresholds for auto-scaling\\\n9. **Reserve Capacity** - Headroom for traffic spikes\\\n10. **Regional Distribution** - Multi-region latency and compliance`, \\\n  \\\n  migration: `You are a Migration Strategist. Plan migration from:\\\n\\\nCurrent: ${existingArchitecture}\\\nTarget: ${requirements}\\\nConstraints: ${constraints}\\\n\\\nProvide:\\\n1. **Migration Strategy** - Strangler Fig, Big Bang, or Hybrid\\\n2. **Phase Breakdown** - Detailed steps per phase\\\n3. **Data Migration** - Sync strategy, validation, rollback\\\n4. **Traffic Shifting** - Canary, blue-green, feature flags\\\n5. **Risk Mitigation** - Per-phase rollback plans\\\n6. **Timeline** - Realistic estimates with buffers\\\n7. **Team Structure** - Ownership per phase\\\n8. **Testing Strategy** - Shadow traffic, contract testing\\\n9. **Observability** - Metrics to monitor during migration\\\n10. **Cost During Migration** - Dual-running overhead`, \\\n  \\\n  techSelection: `You are a Technology Advisor. Recommend optimal stack for:\\\n\\\nRequirements: ${requirements}\\\nScale: ${scale}\\\nTeam Skills: ${$json.body.teamSkills || 'Not specified'}\\\nConstraints: ${constraints}\\\n\\\nFor each category, provide:\\\n1. **Top 3 Recommendations** with pros/cons\\\n2. **Decision Matrix** - Criteria weighting\\\n3. **Final Recommendation** with justification\\\n4. **Migration Path** if replacing existing tech\\\n\\\nCategories:\\\n- Primary Language/Framework\\\n- API Style (REST/GraphQL/gRPC/tRPC)\\\n- Database (SQL/NoSQL/NewSQL)\\\n- Cache (Redis/Memcached/Valkey)\\\n- Message Queue (Kafka/RabbitMQ/NATS/Redis Streams)\\\n- Service Mesh (Istio/Linkerd/Consul/None)\\\n- Orchestration (K8s/ECS/Cloud Run/Nomad)\\\n- Observability (Datadog/Grafana/Signoz/Honeycomb)\\\n- CI/CD (GitHub Actions/GitLab/GKE/Jenkins)\\\n- IaC (Terraform/Pulumi/Crossplane)`,\\\n  \\\n  adr: `You are an Architecture Decision Record author. Create an ADR for:\\\n\\\nDecision: ${requirements}\\\nContext: ${existingArchitecture || 'New project'}\\\nConstraints: ${constraints}\\\n\\\nFormat:\\\n# ADR: [Title]\\\n## Status: Proposed/Accepted/Deprecated/Superseded\\\n## Context\\\n## Decision\\\n## Consequences\\\n### Positive\\\n### Negative\\\n### Risks\\\n## Alternatives Considered\\\n## Related Decisions\\\n## References`\\\n};\\\n\\\nconst taskType = task?.toLowerCase() || 'design';\\\nconst systemPrompt = systemPrompts[taskType] || systemPrompts.design;\\\n\\\nreturn [{\\\n  json: {\\\n    systemPrompt,\\\n    userPrompt: requirements,\\\n    model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n    temperature: 0.2,\\\n    maxTokens: 6000\\\n  }\\\n}];"
+      },
+      "id": "2",
+      "name": "Build Architect Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "3",
+      "name": "OpenAI - Architecture Design",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { task, requirements } = $json.body;\\\n\\\nconst sections = response.split(/\\\n##\\\\s+/);\\\nconst parsed = {};\\\n\\\nsections.forEach(s => {\\\n  const match = s.match(/^([^\\\n]+)[\\\n\\\r]([\\\\s\\\\S]*)/);\\\n  if (match) {\\\n    parsed[match[1].trim().toLowerCase().replace(/\\\\s+/g, '_')] = match[2].trim();\\\n  }\\\n});\\\n\\\nreturn [{ json: {\\\n  success: true,\\\n  task: task || 'design',\\\n  requirements,\\\n  fullResponse: response,\\\n  sections: parsed,\\\n  model: $json.model,\\\n  usage: $json.usage,\\\n  timestamp: new Date().toISOString()\\\n} }];"
+      },
+      "id": "4",
+      "name": "Parse Architecture Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { fullResponse, requirements, task } = $json;\\\n\\\nconst mermaidPrompt = `Convert this system architecture description into a Mermaid.js diagram:\\\n\\\n${fullResponse}\\\n\\\nCreate:\\\n1. C4 Context Diagram (system context)\\\n2. C4 Container Diagram (services, databases, queues)\\\n3. Sequence Diagram for key flows\\\n\\\nOutput ONLY the Mermaid code blocks, no explanation.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt: 'You are a diagram expert. Generate clean, valid Mermaid.js diagrams.',\\\n  userPrompt: mermaidPrompt,\\\n  model: 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 3000\\\n} }];"
+      },
+      "id": "5",
+      "name": "Generate Diagram Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": 0.1,
+        "maxTokens": 3000,
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "nvidia/nemotron-3-ultra-550b-a55b"
+      },
+      "id": "6",
+      "name": "OpenAI - Mermaid Diagrams",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        1250,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst diagrams = response.match(/```mermaid\\\n[\\\\s\\\\S]*?```/g) || [];\\\n\\\nreturn [{ json: {\\\n  diagrams: diagrams.map(d => d.replace(/^```mermaid\\\n/, '').replace(/\\\n```$/, '')),\\\n  rawResponse: response\\\n} }];"
+      },
+      "id": "7",
+      "name": "Extract Diagrams",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { fullResponse, sections, diagrams, requirements, task } = $json;\\\n\\\nconst markdown = `# System Design: ${requirements.substring(0, 80)}...\\\n\\\n**Task:** ${task}\\\n**Generated:** ${new Date().toISOString()}\\\n\\\n---\\\n\\\n${fullResponse}\\\n\\\n---\\\n\\\n## Diagrams\\\n\\\n${diagrams.map((d, i) => `### Diagram ${i + 1}\\\n\\\\`\\\\`\\\\`mermaid\\\n${d}\\\n\\\\`\\\\`\\\\``).join('\\\n\\\n')}\\\n\\\n---\\\n\\\n## Quick Reference\\\n\\\n${Object.entries(sections).map(([k, v]) => `- **${k.replace(/_/g, ' ').toUpperCase()}**: ${v.substring(0, 200)}...`).join('\\\n')}`;\\\n\\\nreturn [{ json: { markdown, success: true } }];"
+      },
+      "id": "8",
+      "name": "Generate Markdown Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\\\nconst path = require('path');\\\n\\\nconst { markdown, requirements } = $json;\\\nconst filename = `system-design-${requirements.substring(0, 30).replace(/[^a-z0-9]/gi, '-')}-${Date.now()}.md`;\\\nconst savePath = path.join('/tmp/n8n-system-designs', filename);\\\n\\\nif (!fs.existsSync(path.dirname(savePath))) {\\\n  fs.mkdirSync(path.dirname(savePath), { recursive: true });\\\n}\\\n\\\nfs.writeFileSync(savePath, markdown);\\\n\\\nreturn [{ json: { success: true, filePath: savePath, filename } }];"
+      },
+      "id": "9",
+      "name": "Save Design Document",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "10",
+      "name": "Respond - Design Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1750,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { requirements, techStack, scale } = $json.body;\\\n\\\nconst prompt = `Compare technology options for: ${requirements}\\\n\\\nScale: ${scale || 'Medium'}\\\nPreferred Stack: ${techStack || 'Open'}\\\n\\\nFor each category, provide a comparison table:\\\n| Criteria | Option A | Option B | Option C |\\\n|----------|----------|----------|----------|\\\n\\\nCategories:\\\n1. **Backend Framework** (Node.js/Go/Java/Python/Rust)\\\n2. **Database** (PostgreSQL/MongoDB/DynamoDB/Cassandra/CockroachDB)\\\n3. **Cache** (Redis/Valkey/Memcached/Dragonfly)\\\n4. **Message Queue** (Kafka/RabbitMQ/NATS/Redis Streams/Pulsar)\\\n5. **API Gateway** (Kong/AWS API Gateway/Envoy/Traefik)\\\n6. **Service Mesh** (Istio/Linkerd/Consul/None)\\\n7. **Observability** (Datadog/Grafana Stack/Honeycomb/Signoz)\\\n8. **Deployment** (K8s/ECS/Cloud Run/Vercel/Render)\\\n\\\nInclude: licensing, community, learning curve, operational burden, cost at scale.`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt: 'You are a Technology Advisor. Provide objective, data-driven comparisons.',\\\n  userPrompt: prompt,\\\n  model: 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 5000\\\n} }];"
+      },
+      "id": "11",
+      "name": "Tech Comparison Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": 0.1,
+        "maxTokens": 5000,
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "nvidia/nemotron-3-ultra-550b-a55b"
+      },
+      "id": "12",
+      "name": "OpenAI - Tech Comparison",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const comparison = $json.choices[0].message.content;\\\nreturn [{ json: { success: true, comparison, usage: $json.usage } }];"
+      },
+      "id": "13",
+      "name": "Format Comparison",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "14",
+      "name": "Respond - Comparison",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Design Request": {
+      "main": [
+        [
+          {
+            "node": "Build Architect Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Architect Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Architecture Design",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Architecture Design": {
+      "main": [
+        [
+          {
+            "node": "Parse Architecture Response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Diagram Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Architecture Response": {
+      "main": [
+        [
+          {
+            "node": "Generate Markdown Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Diagram Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Mermaid Diagrams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Mermaid Diagrams": {
+      "main": [
+        [
+          {
+            "node": "Extract Diagrams",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Diagrams": {
+      "main": [
+        [
+          {
+            "node": "Generate Markdown Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Markdown Report": {
+      "main": [
+        [
+          {
+            "node": "Save Design Document",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Design Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tech Comparison Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Tech Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Tech Comparison": {
+      "main": [
+        [
+          {
+            "node": "Format Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Comparison": {
+      "main": [
+        [
+          {
+            "node": "Respond - Comparison",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "system-design-bot",
+  "tags": []
+}

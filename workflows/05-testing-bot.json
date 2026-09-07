@@ -1,0 +1,654 @@
+{
+  "name": "Testing Bot - Test Generation & Execution",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "testing/generate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Generate Tests",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        200
+      ],
+      "webhookId": "testing-generate"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "testing/execute",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook - Execute Tests",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        450
+      ],
+      "webhookId": "testing-execute"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "testing/coverage",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Webhook - Coverage Analysis",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        700
+      ],
+      "webhookId": "testing-coverage"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { code, language, framework, testTypes, coverageTarget, existingTests, model } = $json.body;\n\nconst lang = language || 'typescript';\nconst fw = framework || (lang === 'python' ? 'pytest' : 'vitest');\nconst types = testTypes || ['unit', 'integration', 'edge'];\n\nconst typePrompts = {\n  unit: 'Unit tests for individual functions/classes with mocked dependencies',\n  integration: 'Integration tests for module interactions and API contracts',\n  edge: 'Edge case tests: empty inputs, boundary values, malformed data, concurrency',\n  property: 'Property-based tests using fast-check / hypothesis',\n  mutation: 'Mutation test scenarios to verify test quality',\n  contract: 'Contract tests for API schemas and message formats',\n  snapshot: 'Snapshot tests for UI components and serialized output',\n  performance: 'Benchmark tests with thresholds',\n  security: 'Security-focused tests: injection, auth bypass, data exposure'\n};\n\nconst selectedTypes = types.map(t => typePrompts[t] || `Custom: ${t}`).join('\\n');\n\nconst systemPrompt = `You are a Senior Test Engineer. Generate production-quality ${fw} tests for ${lang}.\n\nCode under test:\n\\`\\`\\`${lang}\n${code}\n\\`\\`\\`\n\nExisting tests (if any):\n\\`\\`\\`${lang}\n${existingTests || 'None'}\n\\`\\`\\`\n\nTest types to generate:\n${selectedTypes}\n\nCoverage target: ${coverageTarget || '80%'}%\n\nRequirements:\n1. **AAA Pattern** - Arrange, Act, Assert clearly separated\n2. **Descriptive names** - test('should [expected] when [condition]')\n3. **Proper mocking** - vi.mock/jest.mock for externals, no real I/O\n4. **Type safety** - Full TypeScript types, no 'any'\n5. **Isolation** - Each test independent, no shared state\n6. **Determinism** - No flaky patterns (timers, random, network)\n7. **Edge coverage** - Null, undefined, empty, max, Unicode, concurrent\n8. **Error paths** - Exceptions, rejections, timeouts, partial failures\n9. **Maintainability** - DRY with helpers, but not over-abstracted\n10. **Documentation** - Comments for non-obvious assertions\n\nOutput: Complete test file(s) ready to run. Include imports, setup, teardown.`;\n\nreturn [{ json: {\n  systemPrompt,\n  userPrompt: `Generate ${types.join(', ')} tests for the provided code`,\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.1,\n  maxTokens: 6000,\n  language: lang,\n  framework: fw\n} }];"
+      },
+      "id": "4",
+      "name": "Build Test Generation Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "5",
+      "name": "OpenAI - Generate Tests",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\nconst { language, framework } = $json.body;\n\nconst codeBlocks = response.match(/```[\\s\\S]*?```/g) || [];\nconst testCode = codeBlocks\n  .map(b => b.replace(/^```\\w*\\n/, '').replace(/\\n```$/, ''))\n  .join('\\n\\n');\n\nconst ext = language === 'python' ? 'py' : language === 'javascript' ? 'js' : 'ts';\nconst testExt = framework === 'pytest' ? 'py' : 'test.ts';\nconst filename = `generated_tests_${Date.now()}.${testExt}`;\n\nreturn [{ json: {\n  success: true,\n  testCode,\n  fullResponse: response,\n  filename,\n  language,\n  framework,\n  model: $json.model,\n  usage: $json.usage\n} }];"
+      },
+      "id": "6",
+      "name": "Parse Generated Tests",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const fs = require('fs');\nconst path = require('path');\n\nconst { testCode, filename } = $json;\nconst savePath = path.join('/tmp/n8n-tests', filename);\n\nif (!fs.existsSync(path.dirname(savePath))) {\n  fs.mkdirSync(path.dirname(savePath), { recursive: true });\n}\n\nfs.writeFileSync(savePath, testCode);\n\nreturn [{ json: { success: true, filePath: savePath, filename } }];"
+      },
+      "id": "7",
+      "name": "Save Test File",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "8",
+      "name": "Respond - Tests Generated",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { testPath, projectPath, framework, coverage, watch, bail, reporter } = $json.body;\n\nconst fw = framework || 'vitest';\nconst cmd = fw === 'pytest'\n  ? `python -m pytest ${testPath || ''} ${coverage ? '--cov=.' : ''} ${watch ? '' : ''} ${bail ? '-x' : ''} -v --tb=short`\n  : fw === 'jest'\n  ? `npx jest ${testPath || ''} ${coverage ? '--coverage' : ''} ${watch ? '--watch' : ''} ${bail ? '--bail' : ''} --verbose`\n  : `npx vitest run ${testPath || ''} ${coverage ? '--coverage' : ''} ${bail ? '--run' : ''} --reporter=${reporter || 'verbose'}`;\n\nreturn [{ json: { command: cmd, projectPath: projectPath || process.cwd(), framework: fw } }];"
+      },
+      "id": "9",
+      "name": "Build Test Command",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "cwd": "={{ $json.projectPath }}",
+          "timeout": 120000
+        }
+      },
+      "id": "10",
+      "name": "Execute Tests",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { stdout, stderr, exitCode } = $json;\n\nconst parseOutput = (output, framework) => {\n  const results = {\n    passed: 0,\n    failed: 0,\n    skipped: 0,\n    total: 0,\n    duration: 0,\n    tests: []\n  };\n\n  if (!output) return results;\n\n  if (framework === 'pytest') {\n    const passedMatch = output.match(/(\\d+)\\s+passed/);\n    const failedMatch = output.match(/(\\d+)\\s+failed/);\n    const skippedMatch = output.match(/(\\d+)\\s+skipped/);\n    const timeMatch = output.match(/in\\s+([\\d.]+)s/);\n\n    results.passed = passedMatch ? parseInt(passedMatch[1]) : 0;\n    results.failed = failedMatch ? parseInt(failedMatch[1]) : 0;\n    results.skipped = skippedMatch ? parseInt(skippedMatch[1]) : 0;\n    results.total = results.passed + results.failed + results.skipped;\n    results.duration = timeMatch ? parseFloat(timeMatch[1]) : 0;\n  } else {\n    // Vitest / Jest\n    const testMatch = output.match(/Tests\\s+([\\d\\w\\s,]+)/);\n    const passedMatch = output.match(/(\\d+)\\s+passed/);\n    const failedMatch = output.match(/(\\d+)\\s+failed/);\n    const timeMatch = output.match(/Duration\\s+([\\d.]+)s/) || output.match(/Time:\\s+([\\d.]+)s/);\n\n    results.passed = passedMatch ? parseInt(passedMatch[1]) : 0;\n    results.failed = failedMatch ? parseInt(failedMatch[1]) : 0;\n    results.total = results.passed + results.failed;\n    results.duration = timeMatch ? parseFloat(timeMatch[1]) : 0;\n  }\n\n  return results;\n};\n\nconst results = parseOutput(stdout, $json.framework);\n\nreturn [{ json: {\n  success: exitCode === 0,\n  exitCode,\n  summary: `${results.passed} passed, ${results.failed} failed of ${results.total} total (${results.duration}s)`,\n  stdout: stdout.substring(0, 5000),\n  stderr: stderr.substring(0, 5000),\n  results,\n  timestamp: new Date().toISOString()\n} }];"
+      },
+      "id": "11",
+      "name": "Parse Test Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "12",
+      "name": "Respond - Test Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { projectPath, framework, include, exclude, threshold } = $json.body;\n\nconst fw = framework || 'vitest';\nconst cmd = fw === 'pytest'\n  ? `python -m pytest --cov=. ${include ? `-k \"${include}\"` : ''} ${exclude ? `--ignore=${exclude}` : ''} --cov-report=json --cov-report=term-missing -q`\n  : `npx vitest run --coverage ${include || ''} --reporter=json --outputFile=/tmp/coverage.json`;\n\nreturn [{ json: { command: cmd, projectPath: projectPath || process.cwd(), framework: fw } }];"
+      },
+      "id": "13",
+      "name": "Build Coverage Command",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "command": "={{ $json.command }}",
+        "options": {
+          "cwd": "={{ $json.projectPath }}",
+          "timeout": 180000
+        }
+      },
+      "id": "14",
+      "name": "Execute Coverage",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { stdout, stderr, exitCode, framework } = $json;\nconst fs = require('fs');\n\nlet coverage = null;\n\nif (framework === 'vitest' && fs.existsSync('/tmp/coverage.json')) {\n  try {\n    coverage = JSON.parse(fs.readFileSync('/tmp/coverage.json', 'utf-8'));\n  } catch (e) {\n    // Fall back to stdout parsing\n  }\n}\n\nconst parseCoverageSummary = (output, fw) => {\n  const match = output.match(/All files\\s*\\|\\s*([\\d.]+)\\s*\\|\\s*([\\d.]+)\\s*\\|\\s*([\\d.]+)\\s*\\|\\s*([\\d.]+)/);\n  if (match) {\n    return {\n      lines: parseFloat(match[1]),\n      branches: parseFloat(match[2]),\n      functions: parseFloat(match[3]),\n      statements: parseFloat(match[4])\n    };\n  }\n  return null;\n};\n\nconst summary = parseCoverageSummary(stdout, framework);\n\nreturn [{ json: {\n  success: exitCode === 0,\n  coverage,\n  summary: summary || parseCoverageSummary(stdout, framework),\n  rawOutput: stdout.substring(0, 5000),\n  timestamp: new Date().toISOString()\n} }];"
+      },
+      "id": "15",
+      "name": "Parse Coverage Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { coverage, summary, framework } = $json;\n\nlet analysis = '';\n\nif (coverage) {\n  const total = coverage.total || {};\n  analysis = `## Coverage Summary\\n\\n`;\n  analysis += `- **Lines**: ${total.lines?.pct || 'N/A'}% (${total.lines?.covered || 0}/${total.lines?.total || 0})\\n`;\n  analysis += `- **Functions**: ${total.functions?.pct || 'N/A'}% (${total.functions?.covered || 0}/${total.functions?.total || 0})\\n`;\n  analysis += `- **Branches**: ${total.branches?.pct || 'N/A'}% (${total.branches?.covered || 0}/${total.branches?.total || 0})\\n`;\n  analysis += `- **Statements**: ${total.statements?.pct || 'N/A'}% (${total.statements?.covered || 0}/${total.statements?.total || 0})\\n\\n`;\n  \n  if (coverage.files) {\n    analysis += '## Per-File Coverage\\n\\n';\n    analysis += '| File | Lines % | Functions % | Branches % |\\n';\n    analysis += '|------|---------|-------------|------------|\\n';\n    \n    Object.entries(coverage.files).forEach(([file, data]) => {\n      analysis += `| ${file} | ${data.lines?.pct || 0}% | ${data.functions?.pct || 0}% | ${data.branches?.pct || 0}% |\\n`;\n    });\n    analysis += '\\n';\n  }\n  \n  const uncoveredFiles = coverage.files ? \n    Object.entries(coverage.files)\n      .filter(([, data]) => (data.lines?.pct || 100) < 80)\n      .sort((a, b) => (a[1].lines?.pct || 100) - (b[1].lines?.pct || 100))\n      .slice(0, 10) : [];\n  \n  if (uncoveredFiles.length > 0) {\n    analysis += '## ⚠️ Files Below 80% Coverage\\n\\n';\n    uncoveredFiles.forEach(([file, data]) => {\n      analysis += `- **${file}**: ${data.lines?.pct || 0}% lines\\n`;\n      if (data.uncoveredLines?.length) {\n        analysis += `  - Uncovered lines: ${data.uncoveredLines.slice(0, 10).join(', ')}${data.uncoveredLines.length > 10 ? '...' : ''}\\n`;\n      }\n    });\n  }\n} else {\n  analysis = `## Coverage Output\\n\\n\\`\\`\\`\\n${summary}\\n\\`\\`\\``;\n}\n\nreturn [{ json: { success: true, analysis, coverage, timestamp: new Date().toISOString() } }];"
+      },
+      "id": "16",
+      "name": "Format Coverage Report",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "17",
+      "name": "Respond - Coverage Report",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { code, language, framework, bugDescription, stackTrace, model } = $json.body;\n\nconst systemPrompt = `You are an Expert Debugger. Given a test failure, identify the root cause and provide a fix.\n\nLanguage: ${language || 'typescript'}\nFramework: ${framework || 'vitest'}\n\nFailing Code:\n\\`\\`\\`${language || 'typescript'}\n${code}\n\\`\\`\\`\n\nBug Description:\n${bugDescription || 'Test failure'}\n\nStack Trace / Error Output:\n\\`\\`\\`\n${stackTrace || 'No trace provided'}\n\\`\\`\\`\n\nProvide:\n1. **Root Cause** - Exactly why the test failed\n2. **Minimal Reproduction** - Smallest test case that reproduces the issue\n3. **The Fix** - Corrected code with explanation\n4. **Regression Prevention** - How to prevent similar bugs in the future`;\n\nreturn [{ json: {\n  systemPrompt,\n  userPrompt: 'Analyze test failure and fix',\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.1,\n  maxTokens: 4000\n} }];"
+      },
+      "id": "18",
+      "name": "Build Debug Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "19",
+      "name": "OpenAI - Debug Analysis",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        950
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const analysis = $json.choices[0].message.content;\nreturn [{ json: { success: true, analysis, usage: $json.usage } }];"
+      },
+      "id": "20",
+      "name": "Format Debug Analysis",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "21",
+      "name": "Respond - Debug Analysis",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        950
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { testFiles, projectPath, framework, model } = $json.body;\n\nconst systemPrompt = `You are a Test Quality Analyst. Review these test files for:\n\nTest Files:\n${testFiles.map(f => `\\`\\`\\`${f.language}\\n${f.content}\\n\\`\\`\\``).join('\\n\\n')}\n\nFramework: ${framework || 'vitest'}\n\nEvaluate:\n1. **Test Quality** - Are assertions meaningful? No tautologies?\n2. **Coverage Gaps** - What's not tested that should be?\n3. **Flakiness Risks** - Timers, randomness, shared state, network\n4. **Maintainability** - Clear names, DRY, readable, documented\n5. **Best Practices** - AAA, proper mocking, isolation, speed\n6. **Anti-patterns** - Testing implementation, over-mocking, brittle selectors\n\nProvide specific feedback with line references and improved versions.`;\n\nreturn [{ json: {\n  systemPrompt,\n  userPrompt: 'Review test quality',\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\n  temperature: 0.1,\n  maxTokens: 5000\n} }];"
+      },
+      "id": "22",
+      "name": "Build Test Review Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "23",
+      "name": "OpenAI - Test Review",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        1200
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const review = $json.choices[0].message.content;\nreturn [{ json: { success: true, review, usage: $json.usage } }];"
+      },
+      "id": "24",
+      "name": "Format Test Review",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "25",
+      "name": "Respond - Test Review",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        1200
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Generate Tests": {
+      "main": [
+        [
+          {
+            "node": "Build Test Generation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Test Generation Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Tests": {
+      "main": [
+        [
+          {
+            "node": "Parse Generated Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Generated Tests": {
+      "main": [
+        [
+          {
+            "node": "Save Test File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Respond - Tests Generated",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Execute Tests": {
+      "main": [
+        [
+          {
+            "node": "Build Test Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Test Command": {
+      "main": [
+        [
+          {
+            "node": "Execute Tests",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Tests": {
+      "main": [
+        [
+          {
+            "node": "Parse Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Test Results": {
+      "main": [
+        [
+          {
+            "node": "Respond - Test Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Coverage Analysis": {
+      "main": [
+        [
+          {
+            "node": "Build Coverage Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Coverage Command": {
+      "main": [
+        [
+          {
+            "node": "Execute Coverage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Coverage": {
+      "main": [
+        [
+          {
+            "node": "Parse Coverage Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Coverage Results": {
+      "main": [
+        [
+          {
+            "node": "Format Coverage Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Coverage Report": {
+      "main": [
+        [
+          {
+            "node": "Respond - Coverage Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Debug Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Debug Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Debug Analysis": {
+      "main": [
+        [
+          {
+            "node": "Format Debug Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Debug Analysis": {
+      "main": [
+        [
+          {
+            "node": "Respond - Debug Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Test Review Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Test Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Test Review": {
+      "main": [
+        [
+          {
+            "node": "Format Test Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Test Review": {
+      "main": [
+        [
+          {
+            "node": "Respond - Test Review",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "testing-bot",
+  "tags": []
+}

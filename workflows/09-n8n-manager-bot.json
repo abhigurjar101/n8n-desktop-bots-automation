@@ -1,0 +1,994 @@
+{
+  "name": "Production n8n Manager - Self-host, Monitor, Scale, Backup",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/deploy",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "1",
+      "name": "Webhook - Deploy n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        100
+      ],
+      "webhookId": "n8n-deploy"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/backup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "2",
+      "name": "Webhook - Backup n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        300
+      ],
+      "webhookId": "n8n-backup"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/restore",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "3",
+      "name": "Webhook - Restore n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        500
+      ],
+      "webhookId": "n8n-restore"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/scale",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "4",
+      "name": "Webhook - Scale n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        700
+      ],
+      "webhookId": "n8n-scale"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/monitor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "5",
+      "name": "Webhook - Monitor n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        900
+      ],
+      "webhookId": "n8n-monitor"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "n8n/migrate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "6",
+      "name": "Webhook - Migrate n8n",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        250,
+        1100
+      ],
+      "webhookId": "n8n-migrate"
+    },
+    {
+      "parameters": {
+        "functionCode": "const { mode, version, domain, email, replicas, resources, database, queue, storage, ingress, tls, auth, monitoring, model } = $json.body;\\\n\\\nconst modes = {\\\n  docker: 'Docker Compose (single host)',\\\n  kubernetes: 'Kubernetes (production)',\\\n  ecs: 'AWS ECS Fargate',\\\n  cloudrun: 'Google Cloud Run',\\\n  azure: 'Azure Container Apps',\\\n  nomad: 'HashiCorp Nomad'\\\n};\\\n\\\nconst deployMode = mode || 'kubernetes';\\\nconst n8nVersion = version || 'latest';\\\n\\\nconst systemPrompt = `You are a Platform Engineer specializing in n8n deployments. Generate production-ready deployment configs.\\\n\\\nDeployment Mode: ${modes[deployMode]}\\\nn8n Version: ${n8nVersion}\\\nDomain: ${domain || 'n8n.example.com'}\\\nEmail: ${email || 'admin@example.com'}\\\nReplicas: ${replicas || 3}\\\nResources: ${JSON.stringify(resources || { requests: { cpu: '500m', memory: '1Gi' }, limits: { cpu: '2000m', memory: '4Gi' })}\\\nDatabase: ${JSON.stringify(database || { type: 'postgresql', host: 'postgres', pool: 20 })}\\\nQueue: ${JSON.stringify(queue || { type: 'redis', mode: 'cluster' })}\\\nStorage: ${JSON.stringify(storage || { type: 'nfs', size: '50Gi' })}\\\nIngress: ${JSON.stringify(ingress || { class: 'nginx', tls: true })}\\\nTLS: ${tls !== false ? 'cert-manager (Let\\\\'s Encrypt)' : 'self-signed'}\\\nAuth: ${JSON.stringify(auth || { type: 'basic', sso: false })}\\\nMonitoring: ${monitoring || 'prometheus+grafana+loki'}\\\n\\\nGenerate:\\\n1. **Infrastructure as Code** - Terraform / Helm / Kustomize\\\n2. **n8n Configuration** - Environment variables, config maps\\\n3. **Database Setup** - PostgreSQL with connection pooling (PgBouncer)\\\n4. **Queue Setup** - Redis Cluster / Redis Sentinel for HA\\\n5. **Persistence** - Shared storage for workflows, credentials, binary data\\\n6. **Ingress/TLS** - cert-manager, Let's Encrypt, WAF rules\\\n7. **Auth** - Basic auth, SSO (OIDC/SAML), RBAC\\\n8. **Scaling** - HPA (CPU, memory, custom queue depth), VPA\\\n9. **Monitoring** - Prometheus metrics, Grafana dashboards, Loki logs\\\n10. **Alerting** - High latency, queue backlog, failed executions, OOM\\\n11. **Backup** - CronJob for DB dump, workflow export, credentials\\\n12. **Disaster Recovery** - Cross-region replication, RPO/RTO docs\\\n13. **Security** - Network policies, Pod security standards, secrets management\\\n14. **Updates** - Rolling updates, blue-green, canary\\\n\\\nOutput: Complete deployment manifests + runbooks`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Deploy n8n on ${deployMode} with ${replicas} replicas`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 8000\\\n} }];"
+      },
+      "id": "7",
+      "name": "Build Deploy Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "8",
+      "name": "OpenAI - Generate Deploy Config",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst { mode } = $json.body;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|dockerfile|tf|hcl|bash)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_deploy/${mode}/${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: `n8n_deploy/${mode}/deployment.yaml`, content: response });\\\nreturn [{ json: { success: true, mode, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "9",
+      "name": "Parse Deploy Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files, mode } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'deploy', mode);\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace(`n8n_deploy/${mode}/`, ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "10",
+      "name": "Save Deploy Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "11",
+      "name": "Respond - Deploy Config Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { schedule, retention, destinations, encryption, include, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Backup Engineer. Design comprehensive n8n backup strategy.\\\n\\\nSchedule: ${schedule || '0 2 * * *'}\\\nRetention: ${retention || 'daily:30, weekly:12, monthly:12'}\\\nDestinations: ${JSON.stringify(destinations || ['s3', 'gcs', 'local'])}\\\nEncryption: ${encryption !== false ? 'AES-256 (age/gpg)' : 'none'}\\\nInclude: ${JSON.stringify(include || ['database', 'workflows', 'credentials', 'binary_data', 'config', 'logs'])}\\\n\\\nGenerate:\\\n1. **Backup Scripts** - pg_dump, n8n CLI export, file sync\\\n2. **K8s CronJob** - Scheduled backup with retries\\\n3. **Multi-destination** - S3 (with lifecycle), GCS, Azure Blob, local\\\n4. **Encryption** - Age (modern) or GPG, key rotation\\\n5. **Verification** - Checksums, test restores, integrity checks\\\n6. **Incremental** - WAL-G for PostgreSQL, rsync for files\\\n7. **Point-in-time Recovery** - PITR with WAL archiving\\\n8. **Monitoring** - Backup success/failure alerts, duration, size\\\n9. **Documentation** - Runbook with RTO/RPO, restore procedures\\\n10. **Compliance** - GDPR, SOC2, retention policies\\\n\\\nOutput: Backup CronJob, scripts, verification, runbook`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: 'Generate n8n backup strategy',\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "12",
+      "name": "Build Backup Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "13",
+      "name": "OpenAI - Generate Backup",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|bash|sh)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_backup/backup_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'n8n_backup/backup_cronjob.yaml', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "14",
+      "name": "Parse Backup Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'backup');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('n8n_backup/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "15",
+      "name": "Save Backup Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "16",
+      "name": "Respond - Backup Config Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { backupSource, targetEnvironment, pointInTime, verifyOnly, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Disaster Recovery Engineer. Generate n8n restore procedures.\\\n\\\nBackup Source: ${backupSource}\\\nTarget Environment: ${targetEnvironment || 'staging'}\\\nPoint-in-Time: ${pointInTime || 'latest'}\\\nVerify Only: ${verifyOnly || false}\\\n\\\nGenerate:\\\n1. **Restore Scripts** - DB restore, workflow import, credentials, binary data\\\n2. **Pre-flight Checks** - Version compatibility, schema migration\\\n3. **Staging Validation** - Smoke tests, workflow activation test\\\n4. **Cutover Plan** - DNS switch, traffic shifting, rollback\\\n5. **Verification Steps** - API health, execution test, webhook test\\\n6. **Rollback Procedure** - Quick revert if issues\\\n7. **Communication** - Stakeholder notification templates\\\n\\\nOutput: Restore scripts, runbook, verification checklist`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Generate restore from ${backupSource} to ${targetEnvironment}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 5000\\\n} }];"
+      },
+      "id": "17",
+      "name": "Build Restore Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "18",
+      "name": "OpenAI - Generate Restore",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|bash|sh)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_restore/restore_${files.length + 1}.sh`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'n8n_restore/restore.sh', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "19",
+      "name": "Parse Restore Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'restore');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('n8n_restore/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "20",
+      "name": "Save Restore Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "21",
+      "name": "Respond - Restore Config Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { currentReplicas, targetReplicas, trigger, hpaConfig, vpaConfig, kedaConfig, model } = $json.body;\\\n\\\nconst systemPrompt = `You are a Kubernetes Scaling Expert. Generate n8n autoscaling configuration.\\\n\\\nCurrent Replicas: ${currentReplicas || 3}\\\nTarget Replicas: ${targetReplicas || 'auto'}\\\nTrigger: ${trigger || 'queue_depth'}\\\nHPA Config: ${JSON.stringify(hpaConfig || { minReplicas: 3, maxReplicas: 20, targetCPU: 70, targetMemory: 80 })}\\\nVPA Config: ${JSON.stringify(vpaConfig || { mode: 'Auto', updatePolicy: 'Auto' })}\\\nKEDA Config: ${JSON.stringify(kedaConfig || { scaler: 'redis', queueName: 'bull:default', targetItemsPerPod: 100 })}\\\n\\\nGenerate:\\\n1. **HPA** - CPU, memory, custom metrics (queue depth, execution latency)\\\n2. **VPA** - Resource recommendations, automatic updates\\\n3. **KEDA ScaledObject** - Event-driven scaling (Redis queue, Kafka, HTTP)\\\n4. **Cluster Autoscaler** - Node group scaling for pod scheduling\\\n5. **Pod Disruption Budget** - maxUnavailable during scaling\\\n6. **Priority Classes** - Ensure n8n pods have priority\\\n6. **Resource Quotas** - Namespace limits\\\n7. **Scaling Policies** - Stabilization windows, scale-up/down delays\\\n8. **Cost Optimization** - Spot instance tolerance, mixed instances\\\n\\\nOutput: HPA, VPA, KEDA manifests + scaling runbook`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Configure autoscaling for n8n (${currentReplicas} -> ${targetReplicas})`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 5000\\\n} }];"
+      },
+      "id": "22",
+      "name": "Build Scale Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "23",
+      "name": "OpenAI - Generate Scaling Config",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        700
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*#\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_scale/scaling_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'n8n_scale/hpa.yaml', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "24",
+      "name": "Parse Scaling Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'scale');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('n8n_scale/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "25",
+      "name": "Save Scaling Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "26",
+      "name": "Respond - Scaling Config Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { metricsPort, grafanaDashboards, alertRules, logAggregation, tracing, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an Observability Engineer. Generate comprehensive n8n monitoring stack.\\\n\\\nMetrics Port: ${metricsPort || 5678}\\\nGrafana Dashboards: ${grafanaDashboards !== false}\\\nAlert Rules: ${alertRules !== false}\\\nLog Aggregation: ${logAggregation || 'loki'}\\\nTracing: ${tracing || 'jaeger'}\\\n\\\nGenerate:\\\n1. **Prometheus ServiceMonitor** - Scrape n8n metrics (/metrics endpoint)\\\n2. **Key Metrics** - \\\n   - n8n_workflow_executions_total (by status)\\\n   - n8n_workflow_execution_duration_seconds\\\n   - n8n_queue_size / n8n_queue_processing\\\n   - n8n_active_workflows\\\n   - n8n_webhook_requests_total\\\n   - n8n_node_execution_duration_seconds\\\n   - process_cpu_seconds_total, process_resident_memory_bytes\\\n3. **Grafana Dashboards** - \\\n   - Overview (executions, latency, errors, queue)\\\n   - Workflow Deep Dive (per workflow stats)\\\n   - System Health (CPU, memory, disk, network)\\\n   - Queue Analysis (backlog, processing rate, retries)\\\n   - Business Metrics (active users, workflow runs/day)\\\n4. **Alert Rules** - \\\n   - Execution failure rate > 5%\\\n   - P99 latency > 30s\\\n   - Queue backlog > 1000\\\n   - Memory usage > 85%\\\n   - Pod restarts > 3/hour\\\n   - Certificate expiry < 30 days\\\n5. **Loki Log Queries** - Error logs, slow executions, webhook failures\\\n6. **Jaeger Tracing** - Distributed traces for workflow executions\\\n7. **SLOs** - Availability 99.9%, Latency P95 < 10s\\\n8. **Runbooks** - Alert-to-runbook links\\\n\\\nOutput: ServiceMonitor, PrometheusRules, Grafana JSON, Loki queries`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: 'Generate n8n monitoring stack',\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "27",
+      "name": "Build Monitor Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "28",
+      "name": "OpenAI - Generate Monitoring",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        900
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|json|promql)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*#\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_monitor/monitoring_${files.length + 1}.yaml`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'n8n_monitor/servicemonitor.yaml', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "29",
+      "name": "Parse Monitoring Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'monitor');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('n8n_monitor/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "30",
+      "name": "Save Monitoring Config",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "31",
+      "name": "Respond - Monitoring Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { sourceVersion, targetVersion, sourceEnv, targetEnv, migrationStrategy, validateOnly, model } = $json.body;\\\n\\\nconst systemPrompt = `You are an n8n Migration Specialist. Plan and execute version/environment migration.\\\n\\\nSource Version: ${sourceVersion}\\\nTarget Version: ${targetVersion}\\\nSource Env: ${sourceEnv}\\\nTarget Env: ${targetEnv}\\\nStrategy: ${migrationStrategy || 'blue-green'}\\\nValidate Only: ${validateOnly || false}\\\n\\\nGenerate:\\\n1. **Pre-migration Audit** - Workflow inventory, credential check, custom nodes\\\n2. **Compatibility Matrix** - Breaking changes, deprecated features, node changes\\\n3. **Migration Strategy** - Blue-green, rolling, canary, big-bang\\\n4. **Test Plan** - Automated workflow execution comparison\\\n5. **Data Migration** - DB schema migrations, credential encryption key rotation\\\n6. **Rollback Plan** - Immediate revert procedure\\\n7. **Validation Checklist** - API health, webhook delivery, execution parity\\\n8. **Communication** - Stakeholder timeline, downtime windows\\\n9. **Post-migration** - Monitoring baseline, performance comparison\\\n10. **Documentation** - Updated runbooks, architecture diagrams\\\n\\\nOutput: Migration plan, scripts, validation suite, runbook`;\\\n\\\nreturn [{ json: {\\\n  systemPrompt,\\\n  userPrompt: `Plan migration from ${sourceVersion} to ${targetVersion}`,\\\n  model: model || 'nvidia/nemotron-3-ultra-550b-a55b',\\\n  temperature: 0.1,\\\n  maxTokens: 6000\\\n} }];"
+      },
+      "id": "32",
+      "name": "Build Migration Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "temperature": "={{ $json.temperature }}",
+        "maxTokens": "={{ $json.maxTokens }}",
+        "options": {},
+        "resource": "chat",
+        "operation": "complete",
+        "prompt": {
+          "messages": [
+            {
+              "role": "system",
+              "content": "={{ $json.systemPrompt }}"
+            },
+            {
+              "role": "user",
+              "content": "={{ $json.userPrompt }}"
+            }
+          ]
+        },
+        "chatModel": "={{ $json.model }}"
+      },
+      "id": "33",
+      "name": "OpenAI - Generate Migration Plan",
+      "type": "n8n-nodes-base.openAi",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "typeVersion": 1.2,
+      "position": [
+        750,
+        1100
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nvidia-cred-01",
+          "name": "nvidiaApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = $json.choices[0].message.content;\\\nconst files = [];\\\nconst fileMatches = response.matchAll(/```(?:yaml|yml|bash|sh|markdown)?\\\n([\\\\s\\\\S]*?)```/g);\\\nfor (const match of fileMatches) {\\\n  const content = match[1].trim();\\\n  const pathMatch = content.match(/^\\\\s*(?:#|\\/\\/)\\\\s*(?:file|path):\\\\s*(\\\\S+)/m);\\\n  const path = pathMatch ? pathMatch[1] : `n8n_migration/migration_${files.length + 1}.md`;\\\n  files.push({ path, content });\\\n}\\\nif (files.length === 0) files.push({ path: 'n8n_migration/migration_plan.md', content: response });\\\nreturn [{ json: { success: true, files, rawResponse: response, usage: $json.usage } }];"
+      },
+      "id": "34",
+      "name": "Parse Migration Plan",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1000,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { files } = $json;\\\nconst fs = require('fs');\\\nconst path = require('path');\\\nconst baseDir = path.join('/tmp/n8n-manager', 'migration');\\\nif (!fs.existsSync(baseDir)) fs.mkdirSync(baseDir, { recursive: true });\\\nfor (const file of files) {\\\n  const filePath = path.join(baseDir, file.path.replace('n8n_migration/', ''));\\\n  const dir = path.dirname(filePath);\\\n  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });\\\n  fs.writeFileSync(filePath, file.content);\\\n}\\\nreturn [{ json: { success: true, baseDir, fileCount: files.length } }];"
+      },
+      "id": "35",
+      "name": "Save Migration Plan",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        1250,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "36",
+      "name": "Respond - Migration Plan Ready",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1500,
+        1100
+      ]
+    },
+    {
+      "parameters": {
+        "functionCode": "const { action, workflowId, workflowData, credentials, dryRun, model } = $json.body;\\\n\\\nconst n8nApi = process.env.N8N_API_URL || 'http://localhost:5678/api/v1';\\\nconst apiKey = process.env.N8N_API_KEY;\\\n\\\nconst actions = {\\\n  async listWorkflows() {\\\n    const res = await fetch(`${n8nApi}/workflows`, { headers: { 'X-N8N-API-KEY': apiKey } });\\\n    return res.json();\\\n  },\\\n  async getWorkflow(id) {\\\n    const res = await fetch(`${n8nApi}/workflows/${id}`, { headers: { 'X-N8N-API-KEY': apiKey } });\\\n    return res.json();\\\n  },\\\n  async createWorkflow(data) {\\\n    const res = await fetch(`${n8nApi}/workflows`, {\\\n      method: 'POST',\\\n      headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\\\n      body: JSON.stringify(data)\\\n    });\\\n    return res.json();\\\n  },\\\n  async updateWorkflow(id, data) {\\\n    const res = await fetch(`${n8nApi}/workflows/${id}`, {\\\n      method: 'PUT',\\\n      headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\\\n      body: JSON.stringify(data)\\\n    });\\\n    return res.json();\\\n  },\\\n  async deleteWorkflow(id) {\\\n    const res = await fetch(`${n8nApi}/workflows/${id}`, {\\\n      method: 'DELETE',\\\n      headers: { 'X-N8N-API-KEY': apiKey }\\\n    });\\\n    return { success: res.ok };\\\n  },\\\n  async activateWorkflow(id) {\\\n    const res = await fetch(`${n8nApi}/workflows/${id}/activate`, {\\\n      method: 'POST',\\\n      headers: { 'X-N8N-API-KEY': apiKey }\\\n    });\\\n    return res.json();\\\n  },\\\n  async deactivateWorkflow(id) {\\\n    const res = await fetch(`${n8nApi}/workflows/${id}/deactivate`, {\\\n      method: 'POST',\\\n      headers: { 'X-N8N-API-KEY': apiKey }\\\n    });\\\n    return res.json();\\\n  },\\\n  async exportWorkflows() {\\\n    const res = await fetch(`${n8nApi}/workflows/export`, { headers: { 'X-N8N-API-KEY': apiKey } });\\\n    return res.json();\\\n  },\\\n  async importWorkflows(data) {\\\n    const res = await fetch(`${n8nApi}/workflows/import`, {\\\n      method: 'POST',\\\n      headers: { 'Content-Type': 'application/json', 'X-N8N-API-KEY': apiKey },\\\n      body: JSON.stringify(data)\\\n    });\\\n    return res.json();\\\n  },\\\n  async getExecutions(filters) {\\\n    const params = new URLSearchParams(filters);\\\n    const res = await fetch(`${n8nApi}/executions?${params}`, { headers: { 'X-N8N-API-KEY': apiKey } });\\\n    return res.json();\\\n  }\\\n};\\\n\\\nif (!actions[action]) {\\\n  return [{ json: { error: `Unknown action: ${action}` } }];\\\n}\\\n\\\ntry {\\\n  const result = await actions[action](workflowId, workflowData, credentials, dryRun);\\\n  return [{ json: { success: true, action, result } }];\\\n} catch (e) {\\\n  return [{ json: { success: false, action, error: e.message } }];\\\n}`"
+      },
+      "id": "37",
+      "name": "n8n API Operations",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [
+        500,
+        1300
+      ]
+    },
+    {
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseCode": 200
+      },
+      "id": "38",
+      "name": "Respond - API Operation Complete",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        750,
+        1300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook - Deploy n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Deploy Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Deploy Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Deploy Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Deploy Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Deploy Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Deploy Config": {
+      "main": [
+        [
+          {
+            "node": "Save Deploy Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Deploy Config Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Backup n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Backup Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Backup Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Backup",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Backup": {
+      "main": [
+        [
+          {
+            "node": "Parse Backup Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Backup Config": {
+      "main": [
+        [
+          {
+            "node": "Save Backup Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Backup Config Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Restore n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Restore Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Restore Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Restore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Restore": {
+      "main": [
+        [
+          {
+            "node": "Parse Restore Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Restore Config": {
+      "main": [
+        [
+          {
+            "node": "Save Restore Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Restore Config Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Scale n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Scale Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Scale Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Scaling Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Scaling Config": {
+      "main": [
+        [
+          {
+            "node": "Parse Scaling Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Scaling Config": {
+      "main": [
+        [
+          {
+            "node": "Save Scaling Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Scaling Config Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Monitor n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Monitor Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Monitor Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Parse Monitoring Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Monitoring Config": {
+      "main": [
+        [
+          {
+            "node": "Save Monitoring Config",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Monitoring Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook - Migrate n8n": {
+      "main": [
+        [
+          {
+            "node": "Build Migration Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Migration Prompt": {
+      "main": [
+        [
+          {
+            "node": "OpenAI - Generate Migration Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI - Generate Migration Plan": {
+      "main": [
+        [
+          {
+            "node": "Parse Migration Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Migration Plan": {
+      "main": [
+        [
+          {
+            "node": "Save Migration Plan",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond - Migration Plan Ready",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n8n API Operations": {
+      "main": [
+        [
+          {
+            "node": "Respond - API Operation Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "n8n-manager-bot",
+  "tags": []
+}
