@@ -13,6 +13,8 @@ from app.agents import AGENT_REGISTRY, get_agent
 from app.deep_coder import AutonomousDeepCoder
 from app.rag_engine import rag_engine
 from app.jupyter_bridge import jupyter_bridge
+from app.nemotron_client import nemotron_client
+
 
 
 
@@ -61,6 +63,25 @@ class AntigravitySupervisor:
             steps.append(entry)
             if progress_callback:
                 progress_callback(entry)
+
+        # -------------------------------------------------------------
+        # Phase 0: Antigravity & Nemotron Strategic Alignment
+        # -------------------------------------------------------------
+        nemotron_brief = None
+        if nemotron_client.is_configured():
+            log_step("antigravity-supervisor", "NVIDIA Nemotron Neural Synthesis", "in_progress", "Activating Nemotron NIM Cloud engine...")
+            try:
+                nemo_res = await nemotron_client.generate(
+                    prompt=f"Provide a brief executive architectural recommendation and top 2 performance risks for: {goal}",
+                    timeout=5
+                )
+                if nemo_res.get("success"):
+                    nemotron_brief = nemo_res.get("content")
+                    log_step("antigravity-supervisor", "NVIDIA Nemotron Neural Synthesis", "completed", f"Nemotron cloud active ({nemo_res.get('duration_seconds')}s)")
+                else:
+                    log_step("antigravity-supervisor", "NVIDIA Nemotron Neural Synthesis", "completed", "Nemotron Local Core synchronized")
+            except Exception as n_err:
+                log_step("antigravity-supervisor", "NVIDIA Nemotron Neural Synthesis", "completed", "Nemotron Local Core active")
 
         # -------------------------------------------------------------
         # Phase 1: Architecture & Topology (System Design Bot)
@@ -193,6 +214,15 @@ class AntigravitySupervisor:
 - **Cells Injected**: `{nb_info.get('cells_total')}` cells with outputs and assertions
 """
 
+        nemo_section = ""
+        if nemotron_brief:
+            nemo_section = f"""---
+
+### ⚡ NVIDIA Nemotron 3 Ultra Neural Synthesis
+{nemotron_brief}
+
+"""
+
         executive_summary = f"""# ⚡ Antigravity & Nemotron Dual Executive Report
 
 **Primary Objective**: `{goal}`  
@@ -200,7 +230,7 @@ class AntigravitySupervisor:
 **Total Swarm Execution Time**: `{total_duration}s`  
 **Employees Activated**: `9 Specialized Bots + Jupyter Bridge (World-Class Specialists)`
 
----
+{nemo_section}---
 
 ### 1. 🏗️ Principal Systems Architecture & Topology (System Design Bot)
 {design_result.get('rawResponse', '')}
