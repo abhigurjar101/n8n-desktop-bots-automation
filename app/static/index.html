@@ -61,6 +61,22 @@
       </div>
     </div>
 
+    <!-- Studio Navigation Tabs -->
+    <nav class="hidden lg:flex items-center space-x-1 bg-darkBg/80 p-1 rounded-xl border border-darkBorder" id="studio-nav">
+      <button id="nav-btn-orchestrator" onclick="switchStudioMode('antigravity-orchestrator')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-800 transition flex items-center gap-1.5 shadow-sm">
+        <span>👑</span> Antigravity Swarm
+      </button>
+      <button id="nav-btn-deepcoder" onclick="switchStudioMode('autonomous-deepcoder')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+        <span>⚡</span> DeepCoder Studio
+      </button>
+      <button id="nav-btn-rag" onclick="switchStudioMode('advanced-rag')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+        <span>🔬</span> Full-Scale RAG
+      </button>
+      <button id="nav-btn-bots" onclick="switchStudioMode('coding-assistant')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+        <span>🤖</span> 9 Automation Bots
+      </button>
+    </nav>
+
     <!-- Health Status Badges -->
     <div class="flex items-center space-x-4">
       <div id="status-n8n" class="flex items-center space-x-2 text-xs px-3 py-1.5 rounded-lg bg-slate-800/80 border border-slate-700">

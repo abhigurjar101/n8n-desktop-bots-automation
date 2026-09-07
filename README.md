@@ -70,34 +70,33 @@ python cli.py think "Should we rewrite in Rust?" --mode firstPrinciples
 
 ```
 n8n-desktop-bots/
-├── app/                                 # Control Center Web Application
-│   ├── main.py                          # FastAPI server & API gateway
-│   ├── client.py                        # Python SDK client for all 9 bots
-│   └── static/                          # Modern Dark-Mode Dashboard
-│       ├── index.html                   # Interactive UI (Tailwind + Mermaid.js)
-│       ├── app.js                       # Dynamic bot forms & webhook dispatch
-│       └── styles.css                   # Custom styles & dark theme
-├── cli.py                               # Terminal CLI runner
-├── scripts/
-│   ├── health_check.py                  # Infrastructure connectivity test
-│   └── import_workflows.py              # Automated n8n workflow importer
+├── app/                                 # Control Center & High-Performance Localhost Runtime
+│   ├── main.py                          # FastAPI server, REST API gateway & static mount
+│   ├── client.py                        # Python SDK client for n8n webhooks & health checks
+│   ├── deep_coder.py                    # Autonomous DeepCoder closed-loop engine (AST + sandbox)
+│   ├── rag_engine.py                    # Full-scale hybrid RAG (Qdrant + BM25 + Cross-Encoder)
+│   ├── antigravity_brain.py             # Google Antigravity multi-agent supervisor & planner
+│   ├── agents/                          # Advanced Python agent engines (Localhost 0-downtime)
+│   │   ├── base.py                      # BaseAgent abstraction
+│   │   ├── coding_assistant.py          # Coding Assistant & AST validator
+│   │   ├── rag_bot.py                   # Local RAG Qdrant integration
+│   │   ├── system_design.py             # System Design & live Mermaid C4 diagrams
+│   │   ├── high_thinking.py             # Dialectical reasoning & first principles
+│   │   ├── testing_bot.py               # Test suite generator & sandbox execution
+│   │   ├── advanced_rag.py              # Hybrid BM25/Dense RRF & agentic search
+│   │   ├── cloud_deployment.py          # Terraform, K8s, Helm & cost calculator
+│   │   ├── ml_pipeline.py               # Full ML lifecycle & drift monitoring
+│   │   └── n8n_manager.py               # n8n operations, backups & auto-scaling
+│   └── static/                          # Modern Dark-Mode Control Center
+│       ├── index.html                   # Interactive UI (Tailwind + Mermaid.js + Studio Nav)
+│       ├── app.js                       # Dynamic bot forms, execution trace & citation viewer
+│       └── styles.css                   # Custom styles, animations & dark theme
+├── workspace/                           # DeepCoder sandbox artifacts & verified code
 ├── workflows/                           # 9 Production n8n Workflow JSONs
-│   ├── 01-coding-assistant.json         # Coding Assistant Bot
-│   ├── 02-rag-bot.json                  # RAG Bot
-│   ├── 03-system-design-bot.json        # System Design Bot
-│   ├── 04-high-thinking-bot.json        # High Thinking Bot
-│   ├── 05-testing-bot.json              # Testing Bot
-│   ├── 06-advanced-rag-bot.json         # Advanced RAG Bot
-│   ├── 07-cloud-deployment-bot.json     # Cloud Deployment Bot
-│   ├── 08-ml-pipeline-bot.json          # AI/ML Pipeline Bot
-│   └── 09-n8n-manager-bot.json          # n8n Manager Bot
-├── docker-compose.yml                   # Unified Docker orchestration
-├── Dockerfile                           # Container definition for Control Center
-├── Makefile                             # Convenient make commands
+├── cli.py                               # Terminal CLI runner
+├── scripts/                             # Health check & importer scripts
+├── docker-compose.yml                   # Unified Docker orchestration (n8n + Qdrant)
 ├── requirements.txt                     # Python dependencies
-├── .env.example                         # Environment configuration template
-├── DESKTOP_SETUP_GUIDE.md               # Detailed setup guide
-├── start-all.sh                         # Infrastructure startup script
 └── README.md                            # Project documentation
 ```
 

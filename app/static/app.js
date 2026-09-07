@@ -258,6 +258,31 @@ function renderBotsList() {
   });
 }
 
+// Studio Mode Switcher
+function switchStudioMode(botId) {
+  selectBot(botId);
+  updateStudioNavButtons(botId);
+}
+
+function updateStudioNavButtons(botId) {
+  const mapping = {
+    'antigravity-orchestrator': 'nav-btn-orchestrator',
+    'autonomous-deepcoder': 'nav-btn-deepcoder',
+    'advanced-rag': 'nav-btn-rag',
+    'rag-bot': 'nav-btn-rag',
+  };
+  const activeBtnId = mapping[botId] || 'nav-btn-bots';
+  ['nav-btn-orchestrator', 'nav-btn-deepcoder', 'nav-btn-rag', 'nav-btn-bots'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (id === activeBtnId) {
+      el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-slate-800 transition flex items-center gap-1.5 shadow-sm border border-slate-700';
+    } else {
+      el.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5';
+    }
+  });
+}
+
 // Select Active Bot
 function selectBot(botId) {
   state.selectedBotId = botId;
@@ -265,6 +290,7 @@ function selectBot(botId) {
   if (!bot) return;
 
   renderBotsList();
+  updateStudioNavButtons(botId);
 
   elements.activeBotEmoji.textContent = bot.emoji;
   elements.activeBotName.textContent = bot.name;
@@ -568,23 +594,110 @@ function renderTestingBotForm(c) {
 }
 
 function renderAdvancedRagForm(c) {
-  c.innerHTML = `
-    <div>
-      <label class="block text-xs font-semibold text-slate-300 mb-1">Advanced Query / Topic</label>
-      <textarea id="inp-query" rows="4" placeholder="Perform multi-hop reasoning over ingested documentation..." 
-        class="w-full text-xs p-3 bg-darkInput rounded-lg border border-darkBorder text-white focus:border-nvidia focus:outline-none" required></textarea>
-    </div>
-    <div class="flex items-center space-x-3 text-xs text-slate-300">
-      <label class="flex items-center space-x-2">
-        <input type="checkbox" id="inp-rerank" checked class="rounded bg-darkInput text-nvidia">
-        <span>Enable Nemotron Reranking</span>
-      </label>
-      <label class="flex items-center space-x-2">
-        <input type="checkbox" id="inp-hybrid" checked class="rounded bg-darkInput text-nvidia">
-        <span>Hybrid Search (BM25 + Dense)</span>
-      </label>
-    </div>
-  `;
+  const task = state.activeTask;
+  if (task === 'ingest') {
+    c.innerHTML = `
+      <div class="p-3 bg-gradient-to-r from-emerald-950/40 to-slate-900 border border-nvidia/30 rounded-xl mb-4">
+        <div class="text-xs font-semibold text-nvidia flex items-center gap-1.5 mb-1">
+          <span>📥</span> Real-Time Qdrant Vector Ingestion
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Index documents directly into Qdrant (<code class="text-emerald-400">localhost:6333</code>) with 384-d dense embeddings (<code class="text-emerald-400">all-MiniLM-L6-v2</code>).
+        </p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Target Collection</label>
+        <input type="text" id="inp-collection" value="desktop-docs" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Source Name / File Identifier</label>
+        <input type="text" id="inp-source" value="architecture-spec.md" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Document Content / Text to Ingest</label>
+        <textarea id="inp-content" rows="6" placeholder="Paste technical documentation, requirements, ADRs, or system designs to embed into Qdrant..." 
+          class="w-full text-xs p-3 bg-darkInput rounded-lg border border-darkBorder text-white focus:border-nvidia focus:outline-none" required></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Or Ingest Directory (Local Path)</label>
+        <input type="text" id="inp-directory" placeholder="Optional directory path, e.g. ./docs or /Users/.../project" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+      </div>
+    `;
+  } else if (task === 'agentic') {
+    c.innerHTML = `
+      <div class="p-3 bg-gradient-to-r from-purple-950/40 to-slate-900 border border-purple-500/30 rounded-xl mb-4">
+        <div class="text-xs font-semibold text-purple-400 flex items-center gap-1.5 mb-1">
+          <span>🔬</span> Agentic Multi-Step RAG Reasoning
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Decomposes complex multi-hop questions into sub-queries, executes parallel searches, cross-references citations, and synthesizes grounded evidence.
+        </p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Multi-Hop Query / Complex Question</label>
+        <textarea id="inp-query" rows="4" placeholder="How do our authentication service and rate limiter coordinate during token revocation?" 
+          class="w-full text-xs p-3 bg-darkInput rounded-lg border border-darkBorder text-white focus:border-nvidia focus:outline-none" required></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Collection</label>
+          <input type="text" id="inp-collection" value="desktop-docs" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Top Citations (K)</label>
+          <input type="number" id="inp-topk" value="5" min="1" max="15" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+        </div>
+      </div>
+    `;
+  } else if (task === 'evaluate') {
+    c.innerHTML = `
+      <div class="p-3 bg-gradient-to-r from-amber-950/40 to-slate-900 border border-amber-500/30 rounded-xl mb-4">
+        <div class="text-xs font-semibold text-amber-400 flex items-center gap-1.5 mb-1">
+          <span>📊</span> RAG Retrieval Evaluation Benchmark (Ragas)
+        </div>
+        <p class="text-[11px] text-slate-400 leading-relaxed">
+          Benchmarks Context Relevance, Grounded Faithfulness, and Citation Precision against the live vector collection.
+        </p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Evaluation Query</label>
+        <textarea id="inp-query" rows="3" placeholder="Verify retrieval relevance for: distributed transaction rollback mechanisms" 
+          class="w-full text-xs p-3 bg-darkInput rounded-lg border border-darkBorder text-white focus:border-nvidia focus:outline-none" required></textarea>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Collection</label>
+        <input type="text" id="inp-collection" value="desktop-docs" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+      </div>
+    `;
+  } else {
+    c.innerHTML = `
+      <div>
+        <label class="block text-xs font-semibold text-slate-300 mb-1">Hybrid Query (Dense Vector + BM25)</label>
+        <textarea id="inp-query" rows="4" placeholder="Perform multi-hop reasoning over ingested documentation..." 
+          class="w-full text-xs p-3 bg-darkInput rounded-lg border border-darkBorder text-white focus:border-nvidia focus:outline-none" required></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-2">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Collection Name</label>
+          <input type="text" id="inp-collection" value="desktop-docs" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1">Top K Results</label>
+          <input type="number" id="inp-topk" value="5" min="1" max="20" class="w-full text-xs px-3 py-2 bg-darkInput rounded-lg border border-darkBorder text-white">
+        </div>
+      </div>
+      <div class="flex items-center space-x-4 text-xs text-slate-300 pt-1">
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input type="checkbox" id="inp-rerank" checked class="rounded bg-darkInput text-nvidia">
+          <span>Neural Reranker (Cross-Encoder)</span>
+        </label>
+        <label class="flex items-center space-x-2 cursor-pointer">
+          <input type="checkbox" id="inp-hybrid" checked class="rounded bg-darkInput text-nvidia">
+          <span>Hybrid Reciprocal Rank Fusion</span>
+        </label>
+      </div>
+    `;
+  }
 }
 
 function renderCloudDeploymentForm(c) {
@@ -714,7 +827,15 @@ function gatherPayload() {
       break;
 
     case 'advanced-rag':
+      payload.subtask = state.activeTask;
+      payload.collection = get('inp-collection') || 'desktop-docs';
       payload.query = get('inp-query');
+      payload.content = get('inp-content');
+      payload.source = get('inp-source');
+      payload.directory = get('inp-directory');
+      payload.topK = parseInt(get('inp-topk') || '5');
+      payload.use_rerank = document.getElementById('inp-rerank')?.checked ?? true;
+      payload.use_hybrid = document.getElementById('inp-hybrid')?.checked ?? true;
       break;
 
     case 'cloud-deployment':
@@ -864,7 +985,33 @@ function renderResponse(data) {
       textContent += `### Generated Tests\n\n\`\`\`${data.language}\n${data.tests}\n\`\`\`\n\n`;
     }
 
-  // 3. Standard Bot Response
+  // 3. RAG Retrieval & Ingestion Responses
+  } else if (data.answer) {
+    textContent = `# 📚 Qdrant Full-Scale RAG Response\n\n`;
+    textContent += `**Query**: \`${data.query}\` | **Collection**: \`${data.collection}\` | **Latency**: \`${data.latency_ms}ms\`\n\n`;
+    textContent += `${data.answer}\n\n`;
+    if (data.citations && data.citations.length > 0) {
+      textContent += `### 🔍 Verified Citations & Grounding (${data.citations.length})\n\n`;
+      textContent += `| ID | Source Document | Lines | Confidence Score | Excerpt |\n`;
+      textContent += `|:---|:---|:---|:---|:---|\n`;
+      data.citations.forEach(c => {
+        const sc = typeof c.score === 'number' ? (c.score > 1 ? c.score.toFixed(2) : (c.score * 100).toFixed(1) + '%') : (c.score || '0.90');
+        const srcName = c.source ? c.source.split('/').pop() : 'document';
+        const snip = (c.snippet || '').replace(/\|/g, '\\|').replace(/\n/g, ' ');
+        textContent += `| **${c.citation_id}** | \`${srcName}\` | \`${c.lines}\` | \`${sc}\` | ${snip} |\n`;
+      });
+      textContent += `\n`;
+    }
+  } else if (data.chunks_ingested !== undefined) {
+    textContent = `# 📥 Document Ingested Into Qdrant\n\n`;
+    textContent += `- **Collection**: \`${data.collection}\`\n`;
+    textContent += `- **Source Name**: \`${data.source}\`\n`;
+    textContent += `- **Chunks Ingested**: \`${data.chunks_ingested}\`\n`;
+    textContent += `- **Total Tokens**: \`${data.total_tokens || 'N/A'}\`\n`;
+    textContent += `- **Dense Vector Model**: \`all-MiniLM-L6-v2\` (384-d)\n\n`;
+    textContent += `> [!NOTE]\n> Real points are indexed and ready for hybrid queries on \`localhost:6333\`.`;
+
+  // 4. Standard Bot Response
   } else if (typeof data === 'string') {
     textContent = data;
   } else if (data.response) {
