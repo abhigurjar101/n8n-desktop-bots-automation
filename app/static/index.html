@@ -374,8 +374,20 @@
         <br><br>
         <span class="text-emerald-400 font-semibold">Self-Guided Fallback:</span> Without a key, NEMI operates at full speed using local Antigravity intelligence.
       </p>
+      <div id="active-key-card" class="hidden p-3.5 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl text-xs text-emerald-300 flex items-center justify-between">
+        <div>
+          <div class="font-bold flex items-center gap-1.5 text-white">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
+            <span>Key is Active & Stored:</span>
+          </div>
+          <div class="font-mono text-emerald-400 text-xs mt-1" id="active-key-text">nvapi-...</div>
+          <div class="text-[10px] text-slate-400 mt-0.5">Persisted in project <code>.env</code> file</div>
+        </div>
+        <span class="text-xs px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 font-bold">CONNECTED</span>
+      </div>
+
       <div>
-        <label class="block text-xs font-semibold text-slate-300 mb-1.5">API Key</label>
+        <label class="block text-xs font-semibold text-slate-300 mb-1.5" id="input-label">Update or Replace API Key</label>
         <input
           type="password"
           id="input-api-key"
@@ -386,7 +398,7 @@
       <div id="key-feedback" class="hidden text-xs p-2.5 rounded-xl"></div>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeKeyModal()" class="px-4 py-2 text-xs rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition">Cancel</button>
-        <button onclick="saveKey()" class="px-4 py-2 text-xs rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition">Save & Activate</button>
+        <button onclick="saveKey()" class="px-4 py-2 text-xs rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 transition">Save Key</button>
       </div>
     </div>
   </div>
@@ -394,6 +406,7 @@
   <script>
     let rawOutputData = null;
     let timerInterval = null;
+    let currentCredentialData = null;
 
     function setPrompt(text) {
       document.getElementById('prompt-input').value = text;
@@ -402,6 +415,14 @@
 
     function openKeyModal() {
       document.getElementById('key-modal').classList.remove('hidden');
+      if (currentCredentialData && currentCredentialData.nvidiaConfigured) {
+        document.getElementById('active-key-card').classList.remove('hidden');
+        document.getElementById('active-key-text').textContent = currentCredentialData.maskedKey;
+        document.getElementById('input-label').textContent = 'Enter new key to replace (or keep current):';
+      } else {
+        document.getElementById('active-key-card').classList.add('hidden');
+        document.getElementById('input-label').textContent = 'API Key:';
+      }
       document.getElementById('input-api-key').focus();
     }
     function closeKeyModal() {
@@ -412,6 +433,7 @@
       try {
         const res = await fetch('/api/credentials/status');
         const data = await res.json();
+        currentCredentialData = data;
         if (data.nvidiaConfigured) {
           document.getElementById('key-label').textContent = 'Nemotron: ' + data.maskedKey;
         } else {
