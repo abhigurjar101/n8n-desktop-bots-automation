@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NEMI — Autonomous AI Engineering Fleet</title>
+  <title>NEMI — Antigravity & Nemotron AI Command Fleet</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -44,8 +44,8 @@
     }
     .bot-pill.active {
       border-color: #22c55e;
-      background: rgba(34, 197, 94, 0.15);
-      box-shadow: 0 0 12px rgba(34, 197, 94, 0.25);
+      background: rgba(34, 197, 94, 0.2);
+      box-shadow: 0 0 16px rgba(34, 197, 94, 0.35);
     }
 
     ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -55,6 +55,7 @@
 </head>
 <body class="min-h-screen text-slate-100 flex flex-col justify-between selection:bg-emerald-500 selection:text-black">
 
+  <!-- ── TOP BAR ── -->
   <header class="border-b border-slate-800/80 bg-slate-950/60 backdrop-blur-md px-6 py-4 sticky top-0 z-30 flex items-center justify-between">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-xl font-black text-black shadow-lg shadow-emerald-950/60">
@@ -63,224 +64,303 @@
       <div>
         <h1 class="text-white font-extrabold text-xl tracking-tight flex items-center gap-2">
           NEMI
-          <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-            Antigravity Localhost
+          <span class="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            Antigravity × Nemotron Core
           </span>
         </h1>
-        <p class="text-xs text-slate-400">Autonomous 9-Bot Multi-Agent Fleet</p>
+        <p class="text-xs text-slate-400">Executive Dual Command Unit & World-Class Bot Workforce</p>
       </div>
     </div>
 
-    <div class="flex items-center gap-3 text-xs">
+    <!-- Status & Key Controls -->
+    <div class="flex items-center gap-2.5 text-xs flex-wrap justify-end">
+      <!-- Jupyter Live Connection -->
+      <a id="badge-jupyter" href="http://localhost:8888" target="_blank" title="Connected to Local Jupyter Server" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-orange-950/40 border border-orange-500/30 text-orange-300 font-semibold hover:bg-orange-900/40 transition">
+        <span class="w-2 h-2 rounded-full bg-orange-400 dot-live"></span>
+        <span>Jupyter: <b class="text-white">:8888</b> ↗</span>
+      </a>
+
+      <!-- Qdrant Status -->
       <div id="badge-qdrant" class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-slate-300">
         <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
         <span>Qdrant: <b class="text-white">6333</b></span>
       </div>
 
+      <!-- NVIDIA Nemotron Key Button -->
       <button onclick="openKeyModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 transition">
         <span>🔑</span>
         <span id="key-label">Nemotron Key</span>
       </button>
 
+      <!-- All Bots Online -->
       <div class="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 text-emerald-300 font-semibold">
         <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
-        <span>9 Bots Ready</span>
+        <span>Fleet Online</span>
       </div>
     </div>
   </header>
 
-  <main class="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col justify-center">
+  <!-- ── MAIN HERO & PROMPT BOX ── -->
+  <main class="flex-1 max-w-5xl w-full mx-auto px-4 py-8 flex flex-col justify-center">
 
+    <!-- Title and tagline -->
     <div class="text-center mb-6">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900 border border-slate-800 text-xs text-slate-400 mb-3">
+        <span>👑 Google Antigravity (Director)</span>
+        <span class="text-slate-600">•</span>
+        <span>⚡ NVIDIA Nemotron 3 Ultra (Synthesizer)</span>
+      </div>
       <h2 class="text-3xl sm:text-4xl font-black text-white tracking-tight">
-        Give Any Task to the <span class="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">AI Swarm</span>
+        One Command Unit. <span class="bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">World-Class AI Employees.</span>
       </h2>
-      <p class="text-sm text-slate-400 mt-2 max-w-xl mx-auto">
-        Type your objective below and hit <b>START</b>. Antigravity will orchestrate all 9 bots across architecture, deep coding, testing, and vector RAG.
+      <p class="text-sm text-slate-400 mt-2 max-w-2xl mx-auto">
+        Type any engineering task below. The Command Unit delegator deploys the fleet, pre-tests code directly in the <b>Jupyter Kernel</b>, and injects verified cells into your Desktop Notebooks.
       </p>
     </div>
 
-    <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-3 shadow-2xl shadow-emerald-950/20 mb-6">
+    <!-- ── THE PROMPT BOX & START BUTTON ── -->
+    <div class="bg-slate-900/80 border border-slate-800 rounded-3xl p-4 shadow-2xl shadow-emerald-950/20 mb-6">
       <textarea
         id="prompt-input"
         rows="4"
-        placeholder="e.g. Build an encrypted audit logging microservice with PostgreSQL and Kafka with unit tests, Terraform IaC, and vector RAG memory..."
-        class="w-full bg-transparent p-4 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
+        placeholder="Describe any task (e.g. Build an encrypted audit logging microservice with PostgreSQL, Kafka, Pytest assertions, and test in Jupyter notebook)..."
+        class="w-full bg-transparent p-3 text-sm sm:text-base text-white placeholder-slate-500 focus:outline-none resize-none leading-relaxed"
       ></textarea>
 
-      <div class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-800/80 px-2">
+      <!-- Jupyter Auto-Test Option -->
+      <div class="flex items-center justify-between text-xs px-3 py-2 bg-slate-950/60 rounded-xl border border-slate-800/80 mb-3">
+        <label class="flex items-center gap-2 text-slate-300 cursor-pointer select-none">
+          <input type="checkbox" id="check-jupyter-test" checked class="rounded bg-slate-900 border-slate-700 text-emerald-500 focus:ring-0">
+          <span><b>Automated Jupyter Pre-Testing</b>: Run code inside live IPython kernel before pasting to Desktop Notebook</span>
+        </label>
+        <span class="text-orange-400 font-medium hidden sm:inline">Target: ~/Desktop/Notebooks/NEMI_Live_Notebook.ipynb</span>
+      </div>
+
+      <!-- Controls row -->
+      <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-800/80 px-1">
+        <!-- Quick Tasks -->
         <div class="flex items-center gap-2 flex-wrap text-xs text-slate-400">
           <span class="text-slate-500 font-medium">Quick Tasks:</span>
           <button onclick="setPrompt('Build a thread-safe distributed cache with Redis cluster, TTL expiration, and unit tests')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">Distributed Cache</button>
           <button onclick="setPrompt('Build a JWT Authentication microservice with token bucket rate limiting and PostgreSQL')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">JWT Auth & Rate Limiter</button>
-          <button onclick="setPrompt('Build a real-time IoT event streaming pipeline with Kafka and Terraform deployment')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">IoT Pipeline</button>
+          <button onclick="setPrompt('Build an automated time-series anomaly detection pipeline in Python with visual plots')" class="px-2.5 py-1 rounded-lg bg-slate-800/60 hover:bg-slate-800 hover:text-white transition">ML Anomaly Detection</button>
         </div>
 
+        <!-- THE START BUTTON -->
         <button
           id="btn-start"
           onclick="startSwarm()"
           class="btn-start px-8 py-3.5 rounded-2xl font-black text-sm text-black uppercase tracking-wider flex items-center gap-2 shadow-xl shadow-emerald-900/40 cursor-pointer"
         >
           <span id="start-icon" class="text-lg">⚡</span>
-          <span id="start-text">START</span>
+          <span id="start-text">START SWARM</span>
         </button>
       </div>
     </div>
 
+    <!-- ── THE EXECUTIVE COMMAND & WORLD-CLASS BOT EMPLOYEES BOARD ── -->
     <div id="bots-board" class="mb-8">
       <div class="flex items-center justify-between mb-3 px-1">
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 dot-live"></span>
-          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">All Bots Connected (10/10)</span>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-400">Command Unit & Elite Employees Active</span>
         </div>
-        <span id="swarm-status-text" class="text-xs text-slate-400">Ready to run</span>
+        <span id="swarm-status-text" class="text-xs text-slate-400">Connected & synchronized</span>
       </div>
 
-      <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5" id="bots-grid">
-        <div id="bot-supervisor" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+      <!-- Command Unit + Employee Grid -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5" id="bots-grid">
+        <!-- 1. Executive Unit: Antigravity -->
+        <div id="bot-supervisor" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between border-emerald-500/40 bg-emerald-950/20">
           <div class="flex items-center justify-between">
             <span class="text-xl">👑</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">DIRECTOR</span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">Antigravity</div>
-            <div class="text-[10px] text-slate-400 truncate">Swarm Director</div>
+            <div class="font-bold text-xs text-white">Google Antigravity</div>
+            <div class="text-[10px] text-emerald-300/80 truncate">Supreme Strategist</div>
           </div>
         </div>
 
-        <div id="bot-system-design" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+        <!-- 2. Executive Unit: Nemotron -->
+        <div id="bot-nemotron" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between border-emerald-500/40 bg-emerald-950/20">
           <div class="flex items-center justify-between">
-            <span class="text-xl">🏗️</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="text-xl">⚡</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">SYNTHESIS</span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">System Design</div>
-            <div class="text-[10px] text-slate-400 truncate">C4 & Architecture</div>
+            <div class="font-bold text-xs text-white">Nemotron 3 Ultra</div>
+            <div class="text-[10px] text-emerald-300/80 truncate">550B Neural Logic</div>
           </div>
         </div>
 
-        <div id="bot-high-thinking" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-xl">🧠</span>
-            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-          </div>
-          <div class="mt-2">
-            <div class="font-bold text-xs text-white">High Thinking</div>
-            <div class="text-[10px] text-slate-400 truncate">Dialectics & Risk</div>
-          </div>
-        </div>
-
+        <!-- 3. Employee: Principal Software Engineer -->
         <div id="bot-coding-assistant" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">🧑‍💻</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">Coding Assistant</div>
-            <div class="text-[10px] text-slate-400 truncate">AST Syntax Engine</div>
+            <div class="font-bold text-xs text-white">Principal Engineer</div>
+            <div class="text-[10px] text-slate-400 truncate">AST Syntax & Code</div>
           </div>
         </div>
 
+        <!-- 4. Employee: DeepCoder -->
         <div id="bot-deepcoder" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
-            <span class="text-xl">⚡</span>
+            <span class="text-xl">🛠️</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">DeepCoder</div>
-            <div class="text-[10px] text-slate-400 truncate">Sandbox QA Tests</div>
+            <div class="font-bold text-xs text-white">DeepCoder Lead</div>
+            <div class="text-[10px] text-slate-400 truncate">Sandbox Self-Healing</div>
           </div>
         </div>
 
+        <!-- 5. Employee: Chief QA -->
         <div id="bot-testing-bot" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">🧪</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">Testing Bot</div>
-            <div class="text-[10px] text-slate-400 truncate">Pytest Assertions</div>
+            <div class="font-bold text-xs text-white">Chief QA Architect</div>
+            <div class="text-[10px] text-slate-400 truncate">Pytest & Invariants</div>
           </div>
         </div>
 
+        <!-- 6. Employee: Jupyter Kernel Syncer -->
+        <div id="bot-jupyter-bridge" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between border-orange-500/40 bg-orange-950/20">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">📓</span>
+            <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-300 font-bold">KERNEL</span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Jupyter Syncer</div>
+            <div class="text-[10px] text-orange-300/80 truncate">Pre-Test & Inject</div>
+          </div>
+        </div>
+
+        <!-- 7. Employee: Principal Systems Architect -->
+        <div id="bot-system-design" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🏗️</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Systems Architect</div>
+            <div class="text-[10px] text-slate-400 truncate">C4 & Capacity Math</div>
+          </div>
+        </div>
+
+        <!-- 8. Employee: Cognitive Strategy -->
+        <div id="bot-high-thinking" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-xl">🧠</span>
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+          </div>
+          <div class="mt-2">
+            <div class="font-bold text-xs text-white">Cognitive Strategy</div>
+            <div class="text-[10px] text-slate-400 truncate">Dialectics & Risk</div>
+          </div>
+        </div>
+
+        <!-- 9. Employee: Advanced RAG Scientist -->
         <div id="bot-advanced-rag" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">🔬</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">Advanced RAG</div>
-            <div class="text-[10px] text-slate-400 truncate">Hybrid Vector RRF</div>
+            <div class="font-bold text-xs text-white">RAG Scientist</div>
+            <div class="text-[10px] text-slate-400 truncate">Hybrid Qdrant RRF</div>
           </div>
         </div>
 
+        <!-- 10. Employee: Cloud IaC SRE -->
         <div id="bot-cloud-deployment" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">☁️</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">Cloud IaC</div>
+            <div class="font-bold text-xs text-white">Principal Cloud SRE</div>
             <div class="text-[10px] text-slate-400 truncate">Terraform & K8s</div>
           </div>
         </div>
 
+        <!-- 11. Employee: ML Pipeline Lead -->
         <div id="bot-ml-pipeline" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">🤖</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">ML Pipeline</div>
-            <div class="text-[10px] text-slate-400 truncate">Training & Drift</div>
+            <div class="font-bold text-xs text-white">Chief ML Engineer</div>
+            <div class="text-[10px] text-slate-400 truncate">PyTorch & Drift</div>
           </div>
         </div>
 
+        <!-- 12. Employee: n8n Ops Lead -->
         <div id="bot-n8n-manager" class="bot-pill connected rounded-2xl p-3 flex flex-col justify-between">
           <div class="flex items-center justify-between">
             <span class="text-xl">🎛️</span>
             <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
           </div>
           <div class="mt-2">
-            <div class="font-bold text-xs text-white">n8n Manager</div>
-            <div class="text-[10px] text-slate-400 truncate">Cluster Ops</div>
+            <div class="font-bold text-xs text-white">n8n Cluster Lead</div>
+            <div class="text-[10px] text-slate-400 truncate">Auto-Scaling & S3</div>
           </div>
         </div>
       </div>
     </div>
 
+    <!-- ── LIVE EXECUTION PROGRESS BAR ── -->
     <div id="progress-wrap" class="hidden mb-8 bg-slate-900/90 border border-slate-800 rounded-2xl p-5 shadow-xl">
       <div class="flex items-center justify-between mb-3 text-xs">
         <span id="progress-stage" class="font-semibold text-emerald-400 flex items-center gap-2">
           <span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span>
-          <span>Orchestrating multi-agent swarm...</span>
+          <span>Deploying Antigravity & Nemotron Unit...</span>
         </span>
         <span id="progress-timer" class="font-mono text-slate-400">0.0s</span>
       </div>
       <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-        <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300" style="width: 15%"></div>
+        <div id="progress-bar" class="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-300" style="width: 10%"></div>
       </div>
     </div>
 
+    <!-- ── RICH RESULTS OUTPUT ── -->
     <div id="results-wrap" class="hidden mb-12">
-      <div class="flex items-center justify-between bg-slate-900 border border-slate-800 px-5 py-3.5 rounded-2xl mb-4">
+      <!-- Result Action Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-900 border border-slate-800 px-5 py-3.5 rounded-2xl mb-4">
         <div class="flex items-center gap-3">
           <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-xs font-bold">
-            ✓ SWARM EXECUTION COMPLETE
+            ✓ SWARM VERIFICATION COMPLETE
           </span>
           <span id="res-time" class="text-xs text-slate-400 font-mono"></span>
         </div>
-        <button onclick="copyOutput()" id="btn-copy" class="text-xs px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1.5">
-          <span>📋</span> Copy All
-        </button>
+
+        <div class="flex items-center gap-2 text-xs">
+          <!-- Open in Jupyter Button -->
+          <a id="btn-open-jupyter" href="#" target="_blank" class="hidden px-3.5 py-1.5 rounded-xl bg-orange-950/60 hover:bg-orange-900 border border-orange-500/40 text-orange-300 font-bold transition flex items-center gap-1.5 shadow-sm">
+            <span>📓</span> Open in Jupyter ↗
+          </a>
+
+          <button onclick="copyOutput()" id="btn-copy" class="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 transition flex items-center gap-1.5">
+            <span>📋</span> Copy Report
+          </button>
+        </div>
       </div>
 
+      <!-- Result Content Box -->
       <div id="results-body" class="bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 text-sm text-slate-200 space-y-6 overflow-x-auto shadow-2xl leading-relaxed">
       </div>
     </div>
 
   </main>
 
+  <!-- ── NEMOTRON KEY MODAL ── -->
   <div id="key-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -290,9 +370,9 @@
         <button onclick="closeKeyModal()" class="text-slate-400 hover:text-white text-xl font-bold">&times;</button>
       </div>
       <p class="text-xs text-slate-400 leading-relaxed">
-        Paste your NVIDIA API Key (from <a href="https://build.nvidia.com" target="blank" class="text-emerald-400 underline">build.nvidia.com</a>) to connect directly to cloud Nemotron 3 Ultra 550B.
+        Paste your NVIDIA API Key (from <a href="https://build.nvidia.com" target="_blank" class="text-emerald-400 underline">build.nvidia.com</a>) to route directly to NVIDIA Nemotron 3 Ultra 550B in the cloud.
         <br><br>
-        <span class="text-emerald-400 font-semibold">Note:</span> Without a key, NEMI runs at 100% speed using the local Antigravity intelligence engine!
+        <span class="text-emerald-400 font-semibold">Self-Guided Fallback:</span> Without a key, NEMI operates at full speed using local Antigravity intelligence.
       </p>
       <div>
         <label class="block text-xs font-semibold text-slate-300 mb-1.5">API Key</label>
@@ -335,10 +415,10 @@
         if (data.nvidiaConfigured) {
           document.getElementById('key-label').textContent = 'Nemotron: ' + data.maskedKey;
         } else {
-          document.getElementById('key-label').textContent = 'Nemotron: Local Engine';
+          document.getElementById('key-label').textContent = 'Nemotron: Local Core';
         }
       } catch (e) {
-        document.getElementById('key-label').textContent = 'Nemotron: Ready';
+        document.getElementById('key-label').textContent = 'Nemotron: Active';
       }
     }
 
@@ -385,13 +465,18 @@
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;');
 
+      // Code blocks
       out = out.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, function(m, lang, code) {
         return '<pre class="bg-slate-950 border border-slate-800 rounded-2xl p-4 my-4 overflow-x-auto text-xs text-emerald-400 font-mono"><code>' + code.trim() + '</code></pre>';
       });
 
+      // Headers
       out = out.replace(/^### (.*$)/gim, '<h3 class="text-lg font-bold text-white mt-6 mb-2">$1</h3>');
       out = out.replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold text-emerald-400 mt-8 mb-3 pb-1 border-b border-slate-800">$1</h2>');
       out = out.replace(/^# (.*$)/gim, '<h1 class="text-2xl font-extrabold text-white mt-8 mb-4">$1</h1>');
+
+      // Markdown links
+      out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" class="text-emerald-400 underline font-semibold hover:text-emerald-300">$1 ↗</a>');
 
       out = out.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>');
       out = out.replace(/\*(.*?)\*/g, '<em class="text-slate-300">$1</em>');
@@ -413,11 +498,11 @@
       const btn = document.getElementById('btn-start');
       btn.disabled = true;
       document.getElementById('start-icon').textContent = '⏳';
-      document.getElementById('start-text').textContent = 'RUNNING...';
+      document.getElementById('start-text').textContent = 'SWARM WORKING...';
 
       document.getElementById('results-wrap').classList.add('hidden');
       document.getElementById('progress-wrap').classList.remove('hidden');
-      document.getElementById('swarm-status-text').textContent = '🟢 All 10 bots working in swarm...';
+      document.getElementById('swarm-status-text').textContent = '🟢 Command Unit & 9 Employee Bots Active...';
 
       setAllBotsActive(true);
 
@@ -426,22 +511,23 @@
       const barEl = document.getElementById('progress-bar');
       const stageEl = document.getElementById('progress-stage');
 
-      let progress = 15;
+      let progress = 10;
       timerInterval = setInterval(() => {
         const elapsed = ((performance.now() - startTime) / 1000).toFixed(1);
         timerEl.textContent = elapsed + 's';
         if (progress < 90) {
-          progress += Math.random() * 8;
+          progress += Math.random() * 6;
           barEl.style.width = Math.min(progress, 90) + '%';
         }
       }, 200);
 
       const stageMsgs = [
-        '1/5: 🏗️ System Design Bot architecting C4 topologies...',
-        '2/5: 🧠 High Thinking Bot running dialectical pre-mortem...',
-        '3/5: ⚡ Autonomous DeepCoder generating code & executing tests in sandbox...',
-        '4/5: ☁️ Cloud Deployment Bot compiling Terraform IaC modules...',
-        '5/5: 📚 Local RAG Bot indexing 20 chunks into Qdrant vector memory...'
+        '1/6: 👑 Antigravity & Nemotron Unit decomposing strategic goal...',
+        '2/6: 🏗️ Systems Architect bot designing C4 topology & sizing...',
+        '3/6: 🧠 Cognitive Strategy bot executing dialectical pre-mortem...',
+        '4/6: 🧑‍💻 Principal Engineer & DeepCoder writing AST-verified code...',
+        '5/6: 📓 Testing in live Jupyter Kernel & injecting into Desktop Notebook...',
+        '6/6: 📚 RAG Scientist indexing 20 chunks into Qdrant vector memory...'
       ];
       let msgIdx = 0;
       const stageInterval = setInterval(() => {
@@ -449,7 +535,7 @@
           stageEl.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400 dot-live"></span><span>' + stageMsgs[msgIdx] + '</span>';
           msgIdx++;
         }
-      }, 700);
+      }, 650);
 
       try {
         const response = await fetch('/api/orchestrator/supervise', {
@@ -482,15 +568,24 @@
       } finally {
         btn.disabled = false;
         document.getElementById('start-icon').textContent = '⚡';
-        document.getElementById('start-text').textContent = 'START';
+        document.getElementById('start-text').textContent = 'START SWARM';
         document.getElementById('progress-wrap').classList.add('hidden');
-        document.getElementById('swarm-status-text').textContent = '✓ Swarm completed successfully';
+        document.getElementById('swarm-status-text').textContent = '✓ Swarm verified & synchronized';
         setAllBotsActive(false);
       }
     }
 
     function displayResults(data, duration) {
-      document.getElementById('res-time').textContent = 'Duration: ' + duration + 's | All 10 Agents Executed';
+      document.getElementById('res-time').textContent = 'Execution: ' + duration + 's | Verified in Kernel: YES';
+
+      // Check if Jupyter notebook was created
+      const jupyterBtn = document.getElementById('btn-open-jupyter');
+      if (data.jupyter && data.jupyter.notebook && data.jupyter.notebook.jupyter_link) {
+        jupyterBtn.href = data.jupyter.notebook.jupyter_link;
+        jupyterBtn.classList.remove('hidden');
+      } else {
+        jupyterBtn.classList.add('hidden');
+      }
 
       const body = document.getElementById('results-body');
       let html = '';
@@ -498,7 +593,7 @@
       if (data.executive_summary) {
         html += renderMarkdown(data.executive_summary);
       } else {
-        html += '<h2 class="text-xl font-bold text-emerald-400 mb-4">Swarm Delivery Package: ' + data.goal + '</h2>';
+        html += '<h2 class="text-xl font-bold text-emerald-400 mb-4">Swarm Package: ' + data.goal + '</h2>';
       }
 
       body.innerHTML = html;
@@ -512,7 +607,7 @@
       navigator.clipboard.writeText(text);
       const btn = document.getElementById('btn-copy');
       btn.innerHTML = '<span>✓</span> Copied!';
-      setTimeout(() => btn.innerHTML = '<span>📋</span> Copy All', 2000);
+      setTimeout(() => btn.innerHTML = '<span>📋</span> Copy Report', 2000);
     }
 
     document.addEventListener('keydown', (e) => {

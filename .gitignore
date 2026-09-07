@@ -7,3 +7,4 @@ qdrant_data/
 workspace/run_*
 .pytest_cache/
 
+workspace/*.ipynb

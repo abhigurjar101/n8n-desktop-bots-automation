@@ -19,6 +19,8 @@ from app.agents import AGENT_REGISTRY, get_agent
 from app.deep_coder import AutonomousDeepCoder
 from app.rag_engine import rag_engine
 from app.antigravity_brain import antigravity_supervisor
+from app.jupyter_bridge import jupyter_bridge
+
 
 app = FastAPI(
     title="n8n Desktop Bots & Antigravity Localhost Runtime",
@@ -365,6 +367,39 @@ async def save_nvidia_credentials(req: NvidiaKeyRequest):
         "message": "NVIDIA API key saved and activated.",
         "maskedKey": f"{raw_key[:7]}...{raw_key[-4:]}",
     }
+
+
+class JupyterTestAndPasteRequest(BaseModel):
+    task_name: str
+    code: str
+    test_code: Optional[str] = None
+    notebook_filename: str = "NEMI_Live_Notebook.ipynb"
+
+
+@app.post("/api/jupyter/test-and-paste")
+async def jupyter_test_and_paste_endpoint(req: JupyterTestAndPasteRequest):
+    """Pre-tests code in live Jupyter IPython kernel and pastes to notebook if verified."""
+    res = await asyncio.to_thread(
+        jupyter_bridge.auto_test_and_paste,
+        req.task_name,
+        req.code,
+        req.test_code,
+        req.notebook_filename,
+    )
+    return res
+
+
+@app.get("/api/jupyter/status")
+async def jupyter_status_endpoint():
+    """Checks Jupyter server connectivity and notebooks on Desktop."""
+    url = jupyter_bridge.get_active_jupyter_url()
+    desktop_notebooks = [f.name for f in jupyter_bridge.notebook_dir.glob("*.ipynb")]
+    return {
+        "active_url": url,
+        "desktop_notebooks_count": len(desktop_notebooks),
+        "notebooks": desktop_notebooks,
+    }
+
 
 
 # Mount Static Files (Web UI Dashboard)
